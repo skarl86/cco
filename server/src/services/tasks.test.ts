@@ -24,7 +24,7 @@ describe('TasksService', () => {
     expect(task.title).toBe('First task');
     expect(task.taskNumber).toBe(1);
     expect(task.identifier).toBe('TSK-1');
-    expect(task.status).toBe('todo');
+    expect(task.status).toBe('backlog');
     expect(task.priority).toBe('medium');
   });
 
@@ -42,7 +42,7 @@ describe('TasksService', () => {
   });
 
   it('lists tasks filtered by status', () => {
-    const list = service.list(teamId, { status: 'todo' });
+    const list = service.list(teamId, { status: 'backlog' });
     expect(list.length).toBeGreaterThanOrEqual(3);
     const doneList = service.list(teamId, { status: 'done' });
     expect(doneList.length).toBe(0);
@@ -57,7 +57,11 @@ describe('TasksService', () => {
 
   it('validates status transitions', () => {
     const task = service.create(teamId, { title: 'Transition test' });
-    expect(task.status).toBe('todo');
+    expect(task.status).toBe('backlog');
+
+    // backlog -> todo: valid
+    const asTodo = service.update(teamId, task.id, { status: 'todo' });
+    expect(asTodo!.status).toBe('todo');
 
     // todo -> in_progress: valid
     const updated = service.update(teamId, task.id, { status: 'in_progress' });
@@ -93,6 +97,7 @@ describe('TasksService', () => {
 
   it('sets startedAt when moving to in_progress', () => {
     const task = service.create(teamId, { title: 'Start track' });
+    service.update(teamId, task.id, { status: 'todo' });
     const updated = service.update(teamId, task.id, { status: 'in_progress' });
     expect(updated!.startedAt).toBeDefined();
     expect(updated!.startedAt).toBeGreaterThan(0);
@@ -100,6 +105,7 @@ describe('TasksService', () => {
 
   it('sets completedAt when moving to done', () => {
     const task = service.create(teamId, { title: 'Complete track' });
+    service.update(teamId, task.id, { status: 'todo' });
     service.update(teamId, task.id, { status: 'in_progress' });
     service.update(teamId, task.id, { status: 'in_review' });
     const done = service.update(teamId, task.id, { status: 'done' });

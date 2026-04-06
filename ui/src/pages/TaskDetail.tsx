@@ -17,7 +17,11 @@ const cardStyle = {
 const TRANSITIONS: Record<string, { label: string; next: string }[]> = {
   backlog: [{ label: 'Move to To Do', next: 'todo' }],
   todo: [{ label: 'Start Work', next: 'in_progress' }],
-  in_progress: [{ label: 'Send to Review', next: 'in_review' }],
+  in_progress: [
+    { label: 'Send to Review', next: 'in_review' },
+    { label: 'Block', next: 'blocked' },
+  ],
+  blocked: [{ label: 'Resume Work', next: 'in_progress' }],
   in_review: [
     { label: 'Approve', next: 'done' },
     { label: 'Back to In Progress', next: 'in_progress' },

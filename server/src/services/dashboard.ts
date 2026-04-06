@@ -47,6 +47,7 @@ export function createDashboardService(database: Database) {
         todo: 0,
         inProgress: 0,
         inReview: 0,
+        blocked: 0,
         done: 0,
         cancelled: 0,
       };
@@ -55,6 +56,7 @@ export function createDashboardService(database: Database) {
         todo: 'todo',
         in_progress: 'inProgress',
         in_review: 'inReview',
+        blocked: 'blocked',
         done: 'done',
         cancelled: 'cancelled',
       };

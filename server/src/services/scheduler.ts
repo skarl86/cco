@@ -12,7 +12,7 @@ interface SchedulerDeps {
   readonly checkoutService: {
     pickNextTask(teamId: string, agentId: string): any;
     checkout(teamId: string, taskId: string, agentId: string, runId: string): any;
-    release(teamId: string, taskId: string, newStatus?: string): void;
+    release(teamId: string, taskId: string, newStatus?: string, actorAgentId?: string, actorRunId?: string): void;
   };
   readonly tasksService: {
     list(teamId: string, filters?: any): any[];
@@ -72,9 +72,9 @@ export function createScheduler(deps: SchedulerDeps): Scheduler {
         });
 
         if (result.status === 'failed') {
-          checkoutService.release(agent.teamId, task.id, 'todo');
+          checkoutService.release(agent.teamId, task.id, 'todo', agent.id);
         } else {
-          checkoutService.release(agent.teamId, task.id, 'done');
+          checkoutService.release(agent.teamId, task.id, 'done', agent.id);
         }
 
         emitEvent('heartbeat.run.status', agent.teamId, {

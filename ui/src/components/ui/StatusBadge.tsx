@@ -13,6 +13,7 @@ const STATUS_STYLES: Record<string, StatusStyle> = {
   todo:        { bg: 'var(--color-accent-light)', text: 'var(--color-accent-text)' },
   in_progress: { bg: 'var(--color-accent-light)', text: 'var(--color-accent-text)', pulse: true },
   in_review:   { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  blocked:     { bg: 'var(--color-error-light)', text: 'var(--color-error)' },
   done:        { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
   active:      { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
   pending:     { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },

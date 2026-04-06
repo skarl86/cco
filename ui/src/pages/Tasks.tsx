@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTasks, useCreateTask, useUpdateTask, useRuns, useRun } from '@/api/queries';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useTeamId } from '@/hooks/useTeamId';
-import { Plus, ListTodo, X, Clock, FileText } from 'lucide-react';
+import { Plus, ListTodo, X, Clock, FileText, Search } from 'lucide-react';
 
-const COLUMNS = ['backlog', 'todo', 'in_progress', 'in_review', 'done'] as const;
+const COLUMNS = ['backlog', 'todo', 'in_progress', 'in_review', 'blocked', 'done'] as const;
 
 const COLUMN_LABELS: Record<string, string> = {
   backlog: 'Backlog',
   todo: 'To Do',
   in_progress: 'In Progress',
   in_review: 'Review',
+  blocked: 'Blocked',
   done: 'Done',
 };
 
@@ -21,7 +22,19 @@ export function Tasks() {
   const createTask = useCreateTask(teamId);
   const updateTask = useUpdateTask(teamId);
   const [title, setTitle] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedTask, setSelectedTask] = useState<any>(null);
+
+  const filteredTasks = useMemo(() => {
+    if (!searchQuery.trim()) return tasks;
+    const q = searchQuery.toLowerCase();
+    return tasks.filter(
+      (t: any) =>
+        t.title?.toLowerCase().includes(q) ||
+        t.identifier?.toLowerCase().includes(q) ||
+        t.description?.toLowerCase().includes(q),
+    );
+  }, [tasks, searchQuery]);
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +44,7 @@ export function Tasks() {
 
   const grouped = COLUMNS.reduce(
     (acc, col) => {
-      acc[col] = tasks.filter((t: any) => t.status === col);
+      acc[col] = filteredTasks.filter((t: any) => t.status === col);
       return acc;
     },
     {} as Record<string, any[]>,
@@ -49,6 +62,16 @@ export function Tasks() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Tasks</h2>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks..."
+              className="pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
+            />
+          </div>
         <form onSubmit={handleCreate} className="flex gap-2">
           <input
             value={title}
@@ -64,9 +87,10 @@ export function Tasks() {
             <Plus size={16} /> Add
           </button>
         </form>
+        </div>
       </div>
 
-      <div className={`grid ${selectedTask ? 'grid-cols-3' : 'grid-cols-5'} gap-3`}>
+      <div className={`grid ${selectedTask ? 'grid-cols-3' : 'grid-cols-6'} gap-3`}>
         {COLUMNS.map((col) => (
           <div
             key={col}
