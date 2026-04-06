@@ -19,6 +19,7 @@ import {
   agents,
   agentApiKeys,
   budgetPolicies,
+  workProducts,
 } from '@cco/db';
 import { generateId } from '@cco/shared';
 import type { Database } from '@cco/db';
@@ -77,6 +78,7 @@ export function createTeamsService(database: Database) {
         db.delete(taskLabels).where(inArray(taskLabels.taskId, teamTaskIds)).run();
       }
       db.delete(labels).where(eq(labels.teamId, id)).run();
+      db.delete(workProducts).where(eq(workProducts.teamId, id)).run();
       db.delete(tasks).where(eq(tasks.teamId, id)).run();
       db.delete(approvals).where(eq(approvals.teamId, id)).run();
       db.delete(routineRuns).where(eq(routineRuns.teamId, id)).run();

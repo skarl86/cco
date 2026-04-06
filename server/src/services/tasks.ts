@@ -1,5 +1,5 @@
 import { eq, and, or, desc, sql, like, inArray } from 'drizzle-orm';
-import { tasks, teams, taskComments, taskLabels } from '@cco/db';
+import { tasks, teams, taskComments, taskLabels, workProducts } from '@cco/db';
 import { generateId } from '@cco/shared';
 import type { Database } from '@cco/db';
 
@@ -267,7 +267,14 @@ export function createTasksService(database: Database) {
         .limit(10)
         .all();
 
-      return { task, recentComments: comments };
+      const wps = db
+        .select()
+        .from(workProducts)
+        .where(eq(workProducts.taskId, taskId))
+        .orderBy(desc(workProducts.isPrimary), desc(workProducts.updatedAt))
+        .all();
+
+      return { task, recentComments: comments, workProducts: wps };
     },
   };
 }
