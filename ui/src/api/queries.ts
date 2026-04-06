@@ -81,12 +81,14 @@ export function useRunAgent(teamId: string, agentId: string) {
 
 // --- Tasks ---
 
-export function useTasks(teamId: string, filters?: { status?: string }) {
+export function useTasks(teamId: string, filters?: { status?: string; q?: string; projectId?: string }) {
   return useQuery({
     queryKey: queryKeys.tasks.list(teamId, filters),
     queryFn: () => {
       const params = new URLSearchParams();
       if (filters?.status) params.set('status', filters.status);
+      if (filters?.q) params.set('q', filters.q);
+      if (filters?.projectId) params.set('projectId', filters.projectId);
       const qs = params.toString();
       return api.get<ApiResponse<any[]>>(`/teams/${teamId}/tasks${qs ? `?${qs}` : ''}`).then((r) => r.data);
     },
