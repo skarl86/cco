@@ -100,4 +100,37 @@ describe('Scheduler', () => {
     const results = await scheduler.tick();
     expect(results.length).toBe(0);
   });
+
+  it('tick transitions task from todo to in_progress via checkout', async () => {
+    const now = Date.now();
+    database.db.insert(tasks).values({
+      id: 'task_sched_checkout', teamId, title: 'Checkout test',
+      status: 'todo', priority: 'medium', originKind: 'manual',
+      taskNumber: 10, identifier: 'SC-10',
+      createdAt: now, updatedAt: now,
+    }).run();
+
+    // Reset agent to idle
+    database.db.update(agents)
+      .set({ status: 'idle', updatedAt: now })
+      .where(eq(agents.id, 'agent_sched'))
+      .run();
+
+    await scheduler.tick();
+
+    const task = database.db.select().from(tasks)
+      .where(eq(tasks.id, 'task_sched_checkout')).get();
+    expect(task!.status).toBe('in_progress');
+    expect(task!.assigneeAgentId).toBe('agent_sched');
+    expect(task!.checkoutRunId).toBeTruthy();
+  });
+
+  it('start and stop control the interval timer', () => {
+    scheduler.start(10_000);
+    // calling start again is a no-op
+    scheduler.start(10_000);
+    scheduler.stop();
+    // stopping again is safe
+    scheduler.stop();
+  });
 });

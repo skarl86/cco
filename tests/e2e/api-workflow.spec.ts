@@ -132,14 +132,9 @@ test.describe('Full API Workflow', () => {
     });
     const { data: task } = await createRes.json();
 
-    // backlog → todo
-    let res = await request.patch(`/api/teams/${teamId}/tasks/${task.id}`, {
-      data: { status: 'todo' },
-    });
-    expect(res.ok()).toBeTruthy();
-
+    // default status is now 'todo', go straight to in_progress
     // todo → in_progress
-    res = await request.patch(`/api/teams/${teamId}/tasks/${task.id}`, {
+    let res = await request.patch(`/api/teams/${teamId}/tasks/${task.id}`, {
       data: { status: 'in_progress' },
     });
     expect(res.ok()).toBeTruthy();
