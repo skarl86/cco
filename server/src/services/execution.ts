@@ -4,6 +4,7 @@ import { generateId } from '@cco/shared';
 import type { Database } from '@cco/db';
 import type { AdapterRegistry } from '../adapters/registry.js';
 import type { AdapterExecutionContext, AdapterExecutionResult } from '@cco/adapter-utils';
+import { emitEvent } from '../realtime/live-events.js';
 
 export interface StartRunOptions {
   readonly teamId: string;
@@ -107,6 +108,8 @@ export function createExecutionService(database: Database, registry: AdapterRegi
         .where(eq(agents.id, opts.agentId))
         .run();
 
+      emitEvent('agent.status', opts.teamId, { agentId: opts.agentId, status: 'running' });
+
       // Build execution context
       let adapterConfig: Record<string, unknown> = {};
       try {
@@ -160,6 +163,8 @@ export function createExecutionService(database: Database, registry: AdapterRegi
           .where(eq(agents.id, opts.agentId))
           .run();
 
+        emitEvent('agent.status', opts.teamId, { agentId: opts.agentId, status: 'error' });
+
         return {
           runId,
           status: 'failed',
@@ -181,8 +186,9 @@ export function createExecutionService(database: Database, registry: AdapterRegi
         error: result.errorMessage ?? null,
         finishedAt,
         usageJson: result.usage ? JSON.stringify(result.usage) : null,
+        resultJson: result.summary ? JSON.stringify({ summary: result.summary }) : null,
         sessionIdAfter: result.sessionId ?? null,
-        stdoutExcerpt: logChunks.join('').slice(0, 10_000),
+        stdoutExcerpt: logChunks.join('').slice(0, 100_000),
         updatedAt: finishedAt,
       }).where(eq(runs.id, runId)).run();
 
@@ -191,6 +197,14 @@ export function createExecutionService(database: Database, registry: AdapterRegi
         .set({ status: 'idle', updatedAt: finishedAt })
         .where(eq(agents.id, opts.agentId))
         .run();
+
+      emitEvent('agent.status', opts.teamId, { agentId: opts.agentId, status: 'idle' });
+      emitEvent('heartbeat.run.status', opts.teamId, {
+        runId,
+        agentId: opts.agentId,
+        taskId: opts.taskId,
+        status: runStatus,
+      });
 
       // Create cost event if usage is available
       if (result.usage) {

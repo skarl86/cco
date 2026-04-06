@@ -1,28 +1,45 @@
-import { eq } from 'drizzle-orm';
-import { agents } from '@cco/db';
+import { eq, and, sql, lt } from 'drizzle-orm';
+import { agents, runs, routines } from '@cco/db';
 import type { Database } from '@cco/db';
-import type { ExecutionService } from './execution.js';
-import type { RunResult } from './execution.js';
+import type { ExecutionService, RunResult } from './execution.js';
+import { parseCron, cronMatches } from './cron.js';
+import { emitEvent } from '../realtime/live-events.js';
+import { logger } from '../middleware/logger.js';
 
 interface SchedulerDeps {
   readonly database: Database;
   readonly executionService: ExecutionService;
-  readonly checkoutService: { pickNextTask(teamId: string, agentId: string): any; checkout(teamId: string, taskId: string, agentId: string, runId: string): any };
-  readonly tasksService: { list(teamId: string, filters?: any): any[] };
+  readonly checkoutService: {
+    pickNextTask(teamId: string, agentId: string): any;
+    checkout(teamId: string, taskId: string, agentId: string, runId: string): any;
+    release(teamId: string, taskId: string, newStatus?: string): void;
+  };
+  readonly tasksService: {
+    list(teamId: string, filters?: any): any[];
+    create(teamId: string, data: any): any;
+  };
 }
 
 export interface Scheduler {
   tick(): Promise<RunResult[]>;
+  tickScheduledTriggers(): void;
+  reapOrphanedRuns(): void;
   start(intervalMs?: number): void;
   stop(): void;
 }
 
+const ORPHAN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
 export function createScheduler(deps: SchedulerDeps): Scheduler {
-  const { database, executionService, checkoutService } = deps;
+  const { database, executionService, checkoutService, tasksService } = deps;
   let timer: ReturnType<typeof setInterval> | null = null;
 
   return {
     async tick(): Promise<RunResult[]> {
+      // Run all sub-ticks
+      this.reapOrphanedRuns();
+      this.tickScheduledTriggers();
+
       const results: RunResult[] = [];
 
       // Find all idle agents across all teams
@@ -33,16 +50,18 @@ export function createScheduler(deps: SchedulerDeps): Scheduler {
         .all();
 
       for (const agent of idleAgents) {
-        // Find next available todo task for this agent's team
         const task = checkoutService.pickNextTask(agent.teamId, agent.id);
         if (!task) continue;
 
-        // Checkout BEFORE run to prevent race conditions
         const co = checkoutService.checkout(agent.teamId, task.id, agent.id, `pending-${agent.id}`);
-        if (!co.success) continue; // Another agent grabbed it
+        if (!co.success) continue;
 
-        // Build prompt from task
         const prompt = `Task: ${task.title}\n${task.description ?? ''}\nIdentifier: ${task.identifier}`;
+
+        emitEvent('heartbeat.run.queued', agent.teamId, {
+          agentId: agent.id,
+          taskId: task.id,
+        });
 
         const result = await executionService.startRun({
           teamId: agent.teamId,
@@ -52,12 +71,18 @@ export function createScheduler(deps: SchedulerDeps): Scheduler {
           invocationSource: 'heartbeat',
         });
 
-        // Update task status based on run result
         if (result.status === 'failed') {
           checkoutService.release(agent.teamId, task.id, 'todo');
         } else {
           checkoutService.release(agent.teamId, task.id, 'done');
         }
+
+        emitEvent('heartbeat.run.status', agent.teamId, {
+          agentId: agent.id,
+          taskId: task.id,
+          runId: result.runId,
+          status: result.status,
+        });
 
         results.push(result);
       }
@@ -65,11 +90,125 @@ export function createScheduler(deps: SchedulerDeps): Scheduler {
       return results;
     },
 
+    /** Evaluate cron-based routine triggers and create tasks when due. */
+    tickScheduledTriggers(): void {
+      const now = new Date();
+
+      const activeRoutines = database.db
+        .select()
+        .from(routines)
+        .where(eq(routines.status, 'active'))
+        .all();
+
+      for (const routine of activeRoutines) {
+        if (!routine.cronExpression) continue;
+
+        const parsed = parseCron(routine.cronExpression);
+        if (!parsed) continue;
+
+        if (!cronMatches(parsed, now)) continue;
+
+        // Check concurrency policy — skip if agent is already running
+        if (routine.concurrencyPolicy === 'coalesce') {
+          const agentRow = database.db
+            .select()
+            .from(agents)
+            .where(eq(agents.id, routine.assigneeAgentId))
+            .get();
+          if (agentRow && agentRow.status === 'running') continue;
+        }
+
+        // Prevent double-trigger within same minute
+        if (routine.lastTriggeredAt) {
+          const lastTrigger = new Date(routine.lastTriggeredAt);
+          if (
+            lastTrigger.getFullYear() === now.getFullYear() &&
+            lastTrigger.getMonth() === now.getMonth() &&
+            lastTrigger.getDate() === now.getDate() &&
+            lastTrigger.getHours() === now.getHours() &&
+            lastTrigger.getMinutes() === now.getMinutes()
+          ) {
+            continue;
+          }
+        }
+
+        // Create task from routine
+        try {
+          tasksService.create(routine.teamId, {
+            title: routine.title,
+            description: routine.description ?? undefined,
+            assigneeAgentId: routine.assigneeAgentId,
+            projectId: routine.projectId ?? undefined,
+            status: 'todo',
+            priority: 'medium',
+            originKind: 'routine',
+          });
+
+          // Update last triggered timestamp
+          database.db
+            .update(routines)
+            .set({ lastTriggeredAt: now.getTime(), updatedAt: now.getTime() })
+            .where(eq(routines.id, routine.id))
+            .run();
+
+          emitEvent('routine.triggered', routine.teamId, {
+            routineId: routine.id,
+            title: routine.title,
+          });
+
+          logger.info({ routineId: routine.id, title: routine.title }, 'Routine triggered');
+        } catch (err) {
+          logger.error({ routineId: routine.id, err }, 'Failed to trigger routine');
+        }
+      }
+    },
+
+    /** Clean up runs stuck in 'running' state beyond timeout. */
+    reapOrphanedRuns(): void {
+      const cutoff = Date.now() - ORPHAN_TIMEOUT_MS;
+
+      const orphaned = database.db
+        .select()
+        .from(runs)
+        .where(and(eq(runs.status, 'running'), lt(runs.startedAt, cutoff)))
+        .all();
+
+      for (const run of orphaned) {
+        database.db
+          .update(runs)
+          .set({
+            status: 'failed',
+            error: 'Orphaned run reaped by scheduler',
+            errorCode: 'ORPHAN_REAPED',
+            finishedAt: Date.now(),
+            updatedAt: Date.now(),
+          })
+          .where(eq(runs.id, run.id))
+          .run();
+
+        // Reset agent status to idle
+        database.db
+          .update(agents)
+          .set({ status: 'idle', updatedAt: Date.now() })
+          .where(eq(agents.id, run.agentId))
+          .run();
+
+        emitEvent('heartbeat.run.status', run.teamId, {
+          runId: run.id,
+          agentId: run.agentId,
+          status: 'failed',
+          reason: 'orphan_reaped',
+        });
+
+        logger.warn({ runId: run.id, agentId: run.agentId }, 'Reaped orphaned run');
+      }
+    },
+
     start(intervalMs = 60_000) {
       if (timer) return;
       timer = setInterval(() => {
         this.tick().catch((err) => {
-          console.error('Scheduler tick failed:', err);
+          logger.error({ err }, 'Scheduler tick failed');
         });
       }, intervalMs);
     },
