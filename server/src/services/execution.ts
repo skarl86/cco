@@ -7,6 +7,9 @@ import type { AdapterExecutionContext, AdapterExecutionResult } from '@cco/adapt
 import { emitEvent } from '../realtime/live-events.js';
 import path from 'node:path';
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { workProducts } from '@cco/db';
+import { logger } from '../middleware/logger.js';
 
 /**
  * Resolve the CCO skills directory path.
@@ -20,6 +23,64 @@ function resolveSkillsDir(): string | undefined {
     return cwd;
   }
   return undefined;
+}
+
+function getGitHead(): string | null {
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: process.cwd(), timeout: 3000,
+    }).toString().trim();
+  } catch {
+    return null;
+  }
+}
+
+function detectGitWorkProducts(
+  db: any,
+  teamId: string,
+  taskId: string,
+  runId: string,
+  beforeHead: string,
+): void {
+  try {
+    const afterHead = getGitHead();
+    if (!afterHead || afterHead === beforeHead) return;
+
+    const gitLog = execFileSync('git', [
+      'log', `${beforeHead}..${afterHead}`, '--format=%h|%s',
+    ], { cwd: process.cwd(), timeout: 5000 }).toString().trim();
+
+    if (!gitLog) return;
+
+    for (const line of gitLog.split('\n').filter(Boolean)) {
+      const sepIdx = line.indexOf('|');
+      if (sepIdx < 0) continue;
+      const shortHash = line.slice(0, sepIdx);
+      const message = line.slice(sepIdx + 1);
+
+      const now = Date.now();
+      db.insert(workProducts).values({
+        id: generateId('wp'),
+        teamId,
+        taskId,
+        runId,
+        type: 'commit',
+        provider: 'local',
+        externalId: shortHash,
+        title: `${shortHash} — ${message}`,
+        status: 'active',
+        reviewState: 'none',
+        isPrimary: 0,
+        healthStatus: 'unknown',
+        createdAt: now,
+        updatedAt: now,
+      }).run();
+
+      logger.info({ taskId, commit: shortHash }, 'Auto-detected commit work product');
+    }
+  } catch {
+    // Git not available — skip silently
+  }
 }
 
 export interface StartRunOptions {
@@ -173,6 +234,9 @@ export function createExecutionService(database: Database, registry: AdapterRegi
         },
       };
 
+      // Record git HEAD before execution for work product auto-detection
+      const beforeHead = getGitHead();
+
       // Execute
       let result: AdapterExecutionResult;
       try {
@@ -230,6 +294,12 @@ export function createExecutionService(database: Database, registry: AdapterRegi
         .run();
 
       emitEvent('agent.status', opts.teamId, { agentId: opts.agentId, status: 'idle' });
+
+      // Auto-detect git work products (commits created during this run)
+      if (opts.taskId && runStatus === 'completed' && beforeHead) {
+        detectGitWorkProducts(db, opts.teamId, opts.taskId, runId, beforeHead);
+      }
+
       emitEvent('heartbeat.run.status', opts.teamId, {
         runId,
         agentId: opts.agentId,
