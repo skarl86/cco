@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  cco:
+    build: .
+    ports:
+      - "3100:3100"
+    volumes:
+      - cco-data:/home/cco/.cco
+
+volumes:
+  cco-data:

@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  cco:
+    build: .
+    ports:
+      - "${CCO_PORT:-3100}:3100"
+    environment:
+      - CCO_PORT=3100
+      - CCO_API_KEY=${CCO_API_KEY:-}
+      - CCO_HOME=/home/cco/.cco
+    volumes:
+      - cco-data:/home/cco/.cco
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3100/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  cco-data:
