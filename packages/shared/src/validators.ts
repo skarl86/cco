@@ -62,3 +62,27 @@ export const CreateTaskSchema = z.object({
   requestDepth: z.number().int().min(0).optional(),
   billingCode: z.string().optional(),
 });
+
+// --- Work Product Schemas ---
+
+export const WorkProductTypeSchema = z.enum(['pull_request', 'commit', 'branch', 'artifact', 'document', 'preview_url']);
+export type WorkProductType = z.infer<typeof WorkProductTypeSchema>;
+
+export const WorkProductStatusSchema = z.enum(['active', 'draft', 'ready_for_review', 'merged', 'closed', 'failed', 'archived']);
+export const WorkProductReviewStateSchema = z.enum(['none', 'needs_review', 'approved', 'changes_requested']);
+
+export const CreateWorkProductSchema = z.object({
+  taskId: z.string().min(1),
+  type: WorkProductTypeSchema,
+  provider: z.string().min(1),
+  externalId: z.string().optional(),
+  title: z.string().min(1),
+  url: z.string().optional(),
+  status: WorkProductStatusSchema.default('active'),
+  reviewState: WorkProductReviewStateSchema.default('none'),
+  isPrimary: z.boolean().default(false),
+  summary: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  runId: z.string().optional(),
+  workspaceId: z.string().optional(),
+});
