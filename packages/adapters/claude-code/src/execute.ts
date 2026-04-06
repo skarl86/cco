@@ -5,11 +5,21 @@ import type {
 } from '@cco/adapter-utils';
 import { parseClaudeStreamJson } from './parse.js';
 
+export const DEFAULT_ALLOWED_TOOLS: readonly string[] = [
+  'Bash(command:*)',
+  'Write',
+  'Edit',
+  'Read',
+  'Glob',
+  'Grep',
+];
+
 export interface BuildArgsOptions {
   readonly sessionId?: string;
   readonly model?: string;
   readonly maxTurns?: number;
   readonly allowUnsafe?: boolean;
+  readonly allowedTools?: string[];
   readonly skillsDir?: string;
   readonly systemPromptFile?: string;
   readonly effort?: string;
@@ -29,6 +39,11 @@ export function buildClaudeArgs(opts: BuildArgsOptions): string[] {
   }
   if (opts.allowUnsafe) {
     args.push('--dangerously-skip-permissions');
+  } else {
+    const tools = opts.allowedTools?.length ? opts.allowedTools : DEFAULT_ALLOWED_TOOLS;
+    for (const tool of tools) {
+      args.push('--allowedTools', tool);
+    }
   }
   if (opts.skillsDir) {
     args.push('--add-dir', opts.skillsDir);
@@ -52,6 +67,7 @@ export async function executeClaudeCode(
     model: config.model as string | undefined,
     maxTurns: config.maxTurns as number | undefined,
     allowUnsafe: (config.allowUnsafe as boolean) ?? false,
+    allowedTools: Array.isArray(config.allowedTools) ? config.allowedTools as string[] : undefined,
     skillsDir: config.skillsDir as string | undefined,
     systemPromptFile: config.systemPromptFile as string | undefined,
     effort: config.effort as string | undefined,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { buildClaudeArgs } from './execute.js';
+import { buildClaudeArgs, DEFAULT_ALLOWED_TOOLS } from './execute.js';
 
 describe('buildClaudeArgs', () => {
   it('builds basic args with print and stream-json', () => {
@@ -49,5 +49,36 @@ describe('buildClaudeArgs', () => {
     const args = buildClaudeArgs({ systemPromptFile: '/tmp/prompt.md' });
     expect(args).toContain('--append-system-prompt-file');
     expect(args).toContain('/tmp/prompt.md');
+  });
+
+  it('adds default --allowedTools when neither allowUnsafe nor allowedTools set', () => {
+    const args = buildClaudeArgs({});
+    expect(args).toContain('--allowedTools');
+    // Should contain all default tools
+    for (const tool of DEFAULT_ALLOWED_TOOLS) {
+      expect(args).toContain(tool);
+    }
+    expect(args).not.toContain('--dangerously-skip-permissions');
+  });
+
+  it('adds custom --allowedTools when specified', () => {
+    const args = buildClaudeArgs({ allowedTools: ['Bash(git:*)', 'Read'] });
+    expect(args).toContain('--allowedTools');
+    expect(args).toContain('Bash(git:*)');
+    expect(args).toContain('Read');
+  });
+
+  it('prefers --dangerously-skip-permissions when allowUnsafe is true even with allowedTools', () => {
+    const args = buildClaudeArgs({ allowUnsafe: true, allowedTools: ['Read'] });
+    expect(args).toContain('--dangerously-skip-permissions');
+    expect(args).not.toContain('--allowedTools');
+  });
+
+  it('falls back to default tools when allowedTools is empty', () => {
+    const args = buildClaudeArgs({ allowedTools: [] });
+    expect(args).toContain('--allowedTools');
+    for (const tool of DEFAULT_ALLOWED_TOOLS) {
+      expect(args).toContain(tool);
+    }
   });
 });
