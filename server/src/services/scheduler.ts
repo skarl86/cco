@@ -1,10 +1,109 @@
 import { eq, and, sql, lt } from 'drizzle-orm';
-import { agents, runs, routines } from '@cco/db';
+import { agents, runs, routines, workProducts } from '@cco/db';
+import { generateId } from '@cco/shared';
 import type { Database } from '@cco/db';
 import type { ExecutionService, RunResult } from './execution.js';
 import { parseCron, cronMatches } from './cron.js';
 import { emitEvent } from '../realtime/live-events.js';
 import { logger } from '../middleware/logger.js';
+import { execFileSync } from 'node:child_process';
+
+/**
+ * Auto-detect git work products (commits, branches) after a successful agent run.
+ * Checks git log for recent commits and current branch, then registers them as work products.
+ */
+function autoDetectWorkProducts(database: Database, teamId: string, taskId: string, runId: string): void {
+  const { db } = database;
+  const cwd = process.cwd();
+
+  try {
+    // Detect recent commits (last 5 minutes)
+    const gitLog = execFileSync('git', [
+      'log', '--oneline', '--since=5 minutes ago', '--format=%H|%s',
+    ], { cwd, timeout: 5000 }).toString().trim();
+
+    if (gitLog) {
+      const commits = gitLog.split('\n').filter(Boolean);
+      for (const line of commits) {
+        const [hash, ...msgParts] = line.split('|');
+        const message = msgParts.join('|');
+        if (!hash) continue;
+
+        const shortHash = hash.slice(0, 7);
+
+        // Skip if already registered
+        const existing = db.select().from(workProducts)
+          .where(and(
+            eq(workProducts.teamId, teamId),
+            eq(workProducts.taskId, taskId),
+            eq(workProducts.type, 'commit'),
+            eq(workProducts.externalId, shortHash),
+          )).get();
+        if (existing) continue;
+
+        const now = Date.now();
+        db.insert(workProducts).values({
+          id: generateId('wp'),
+          teamId,
+          taskId,
+          runId,
+          type: 'commit',
+          provider: 'local',
+          externalId: shortHash,
+          title: `${shortHash} — ${message}`,
+          status: 'active',
+          reviewState: 'none',
+          isPrimary: 0,
+          healthStatus: 'unknown',
+          createdAt: now,
+          updatedAt: now,
+        }).run();
+
+        logger.info({ taskId, commit: shortHash }, 'Auto-detected commit work product');
+      }
+    }
+
+    // Detect current branch
+    const branch = execFileSync('git', ['branch', '--show-current'], {
+      cwd, timeout: 5000,
+    }).toString().trim();
+
+    if (branch && branch !== 'main' && branch !== 'master') {
+      const existing = db.select().from(workProducts)
+        .where(and(
+          eq(workProducts.teamId, teamId),
+          eq(workProducts.taskId, taskId),
+          eq(workProducts.type, 'branch'),
+          eq(workProducts.externalId, branch),
+        )).get();
+
+      if (!existing) {
+        const now = Date.now();
+        db.insert(workProducts).values({
+          id: generateId('wp'),
+          teamId,
+          taskId,
+          runId,
+          type: 'branch',
+          provider: 'local',
+          externalId: branch,
+          title: branch,
+          status: 'active',
+          reviewState: 'none',
+          isPrimary: 0,
+          healthStatus: 'unknown',
+          createdAt: now,
+          updatedAt: now,
+        }).run();
+
+        logger.info({ taskId, branch }, 'Auto-detected branch work product');
+      }
+    }
+  } catch (err) {
+    // Git not available or not a git repo — silently skip
+    logger.debug({ taskId, err }, 'Work product auto-detection skipped');
+  }
+}
 
 /**
  * Build a prompt that instructs the agent to register work products after completing work.
@@ -106,6 +205,8 @@ export function createScheduler(deps: SchedulerDeps): Scheduler {
           checkoutService.release(agent.teamId, task.id, 'todo', agent.id);
         } else {
           checkoutService.release(agent.teamId, task.id, 'done', agent.id);
+          // Auto-detect work products from git after successful run
+          autoDetectWorkProducts(database, agent.teamId, task.id, result.runId);
         }
 
         emitEvent('heartbeat.run.status', agent.teamId, {
