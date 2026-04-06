@@ -57,7 +57,7 @@ describe('CheckoutService', () => {
     checkoutService.checkout(teamId, task.id, 'agent_a', 'run_2');
     const result = checkoutService.checkout(teamId, task.id, 'agent_b', 'run_3');
     expect(result.success).toBe(false);
-    expect(result.error).toContain('already checked out');
+    expect(result.error).toBe('status_not_eligible');
   });
 
   it('releases checkout on completion', () => {
