@@ -8,10 +8,10 @@ export type AgentRole = z.infer<typeof AgentRoleSchema>;
 export const AgentStatusSchema = z.enum(['idle', 'running', 'paused', 'error']);
 export type AgentStatus = z.infer<typeof AgentStatusSchema>;
 
-export const TaskStatusSchema = z.enum(['backlog', 'todo', 'in_progress', 'in_review', 'done', 'cancelled']);
+export const TaskStatusSchema = z.enum(['backlog', 'todo', 'in_progress', 'in_review', 'blocked', 'done', 'cancelled']);
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
-export const TaskPrioritySchema = z.enum(['low', 'medium', 'high', 'urgent']);
+export const TaskPrioritySchema = z.enum(['low', 'medium', 'high', 'urgent', 'critical']);
 export type TaskPriority = z.infer<typeof TaskPrioritySchema>;
 
 export const RunStatusSchema = z.enum(['queued', 'running', 'completed', 'failed', 'cancelled']);
@@ -50,9 +50,15 @@ export const CreateAgentSchema = z.object({
 export const CreateTaskSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
-  status: TaskStatusSchema.default('todo'),
+  status: TaskStatusSchema.default('backlog'),
   priority: TaskPrioritySchema.default('medium'),
   parentId: z.string().optional(),
   projectId: z.string().optional(),
+  goalId: z.string().optional(),
   assigneeAgentId: z.string().optional(),
+  assigneeUserId: z.string().optional(),
+  originKind: z.string().optional(),
+  originId: z.string().optional(),
+  requestDepth: z.number().int().min(0).optional(),
+  billingCode: z.string().optional(),
 });

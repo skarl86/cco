@@ -18,3 +18,5 @@ export { documents } from './documents.js';
 export { feedback } from './feedback.js';
 export { executionWorkspaces } from './execution-workspaces.js';
 export { workspaceRuns } from './workspace-runs.js';
+export { labels } from './labels.js';
+export { taskLabels } from './task-labels.js';

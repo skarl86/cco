@@ -1,8 +1,10 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import {
   teams,
   activityLog,
   taskComments,
+  taskLabels,
+  labels,
   feedback,
   documents,
   costEvents,
@@ -69,6 +71,12 @@ export function createTeamsService(database: Database) {
       db.delete(documents).where(eq(documents.teamId, id)).run();
       db.delete(costEvents).where(eq(costEvents.teamId, id)).run();
       db.delete(runs).where(eq(runs.teamId, id)).run();
+      // Delete task_labels for all tasks in this team
+      const teamTaskIds = db.select({ id: tasks.id }).from(tasks).where(eq(tasks.teamId, id)).all().map((r) => r.id);
+      if (teamTaskIds.length > 0) {
+        db.delete(taskLabels).where(inArray(taskLabels.taskId, teamTaskIds)).run();
+      }
+      db.delete(labels).where(eq(labels.teamId, id)).run();
       db.delete(tasks).where(eq(tasks.teamId, id)).run();
       db.delete(approvals).where(eq(approvals.teamId, id)).run();
       db.delete(routineRuns).where(eq(routineRuns.teamId, id)).run();

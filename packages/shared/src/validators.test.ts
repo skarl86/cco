@@ -41,11 +41,11 @@ describe('Enum validators', () => {
   });
 
   it('validates task priorities', () => {
-    const valid = ['low', 'medium', 'high', 'urgent'];
+    const valid = ['low', 'medium', 'high', 'urgent', 'critical'];
     for (const p of valid) {
       expect(TaskPrioritySchema.parse(p)).toBe(p);
     }
-    expect(() => TaskPrioritySchema.parse('critical')).toThrow();
+    expect(() => TaskPrioritySchema.parse('invalid')).toThrow();
   });
 
   it('validates run statuses', () => {
@@ -154,7 +154,7 @@ describe('CreateTaskSchema', () => {
     const result = CreateTaskSchema.parse({
       title: 'Some task',
     });
-    expect(result.status).toBe('todo');
+    expect(result.status).toBe('backlog');
   });
 
   it('rejects empty title', () => {

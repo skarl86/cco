@@ -34,6 +34,12 @@ export interface TeamExport {
     readonly priority: string;
     readonly identifier: string | null;
     readonly originKind: string;
+    readonly goalId: string | null;
+    readonly assigneeUserId: string | null;
+    readonly requestDepth: number;
+    readonly billingCode: string | null;
+    readonly cancelledAt: number | null;
+    readonly originId: string | null;
   }>;
   readonly goals: ReadonlyArray<{
     readonly title: string;
@@ -106,6 +112,12 @@ export function createExportImportService(database: Database) {
           priority: t.priority,
           identifier: t.identifier,
           originKind: t.originKind,
+          goalId: t.goalId,
+          assigneeUserId: t.assigneeUserId,
+          requestDepth: t.requestDepth,
+          billingCode: t.billingCode,
+          cancelledAt: t.cancelledAt,
+          originId: t.originId,
         })),
         goals: teamGoals.map((g) => ({
           title: g.title,
@@ -184,8 +196,14 @@ export function createExportImportService(database: Database) {
             identifier: task.identifier,
             taskNumber: 0,
             originKind: task.originKind,
+            goalId: task.goalId ?? null,
             assigneeAgentId: null,
+            assigneeUserId: task.assigneeUserId ?? null,
             projectId: null,
+            requestDepth: task.requestDepth ?? 0,
+            billingCode: task.billingCode ?? null,
+            cancelledAt: task.cancelledAt ?? null,
+            originId: task.originId ?? null,
             createdAt: now,
             updatedAt: now,
           })
