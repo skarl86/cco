@@ -150,11 +150,11 @@ describe('CreateTaskSchema', () => {
     expect(result.priority).toBe('medium');
   });
 
-  it('defaults status to backlog', () => {
+  it('defaults status to todo', () => {
     const result = CreateTaskSchema.parse({
       title: 'Some task',
     });
-    expect(result.status).toBe('backlog');
+    expect(result.status).toBe('todo');
   });
 
   it('rejects empty title', () => {

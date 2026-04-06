@@ -8,7 +8,7 @@ export const tasks = sqliteTable('tasks', {
   parentId: text('parent_id'),
   title: text('title').notNull(),
   description: text('description'),
-  status: text('status').notNull().default('backlog'),
+  status: text('status').notNull().default('todo'),
   priority: text('priority').notNull().default('medium'),
   assigneeAgentId: text('assignee_agent_id'),
   checkoutRunId: text('checkout_run_id'),

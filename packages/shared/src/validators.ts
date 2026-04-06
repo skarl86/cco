@@ -50,7 +50,7 @@ export const CreateAgentSchema = z.object({
 export const CreateTaskSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
-  status: TaskStatusSchema.default('backlog'),
+  status: TaskStatusSchema.default('todo'),
   priority: TaskPrioritySchema.default('medium'),
   parentId: z.string().optional(),
   projectId: z.string().optional(),

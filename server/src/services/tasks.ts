@@ -95,7 +95,7 @@ export function createTasksService(database: Database) {
         teamId,
         title: data.title,
         description: data.description ?? null,
-        status: data.status ?? 'backlog',
+        status: data.status ?? 'todo',
         priority: data.priority ?? 'medium',
         parentId: data.parentId ?? null,
         projectId: data.projectId ?? null,
