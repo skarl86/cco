@@ -5,6 +5,22 @@ import type { Database } from '@cco/db';
 import type { AdapterRegistry } from '../adapters/registry.js';
 import type { AdapterExecutionContext, AdapterExecutionResult } from '@cco/adapter-utils';
 import { emitEvent } from '../realtime/live-events.js';
+import path from 'node:path';
+import fs from 'node:fs';
+
+/**
+ * Resolve the CCO skills directory path.
+ * Looks for skills/ directory relative to the project root (cwd).
+ * Returns the project root if skills/ exists (so --add-dir finds .claude/skills or skills/).
+ */
+function resolveSkillsDir(): string | undefined {
+  const cwd = process.cwd();
+  const skillsPath = path.join(cwd, 'skills');
+  if (fs.existsSync(skillsPath)) {
+    return cwd;
+  }
+  return undefined;
+}
 
 export interface StartRunOptions {
   readonly teamId: string;
@@ -120,6 +136,19 @@ export function createExecutionService(database: Database, registry: AdapterRegi
 
       const logChunks: string[] = [];
 
+      // Resolve skills directory (repo root / skills/)
+      const skillsDir = resolveSkillsDir();
+
+      // Inject environment variables for agent to call CCO API
+      const ccoEnv: Record<string, string> = {
+        CCO_API_URL: `http://localhost:${process.env.CCO_PORT ?? '3100'}`,
+        CCO_TEAM_ID: opts.teamId,
+        CCO_RUN_ID: runId,
+      };
+      if (opts.taskId) {
+        ccoEnv.CCO_TASK_ID = opts.taskId;
+      }
+
       const ctx: AdapterExecutionContext = {
         runId,
         agent: {
@@ -137,6 +166,8 @@ export function createExecutionService(database: Database, registry: AdapterRegi
         config: adapterConfig,
         context: { prompt: opts.prompt },
         workingDirectory: opts.workingDirectory,
+        env: ccoEnv,
+        skillsDir,
         async onLog(_stream, chunk) {
           logChunks.push(chunk);
         },

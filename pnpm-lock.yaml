@@ -53,6 +53,10 @@ importers:
       '@cco/adapter-utils':
         specifier: workspace:*
         version: link:../../adapter-utils
+    devDependencies:
+      '@types/node':
+        specifier: ^25.5.2
+        version: 25.5.2
 
   packages/adapters/codex:
     dependencies:

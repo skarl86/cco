@@ -23,6 +23,8 @@ export interface BuildArgsOptions {
   readonly skillsDir?: string;
   readonly systemPromptFile?: string;
   readonly effort?: string;
+  /** Directory containing .claude/skills/ for --add-dir injection */
+  readonly addDir?: string;
 }
 
 export function buildClaudeArgs(opts: BuildArgsOptions): string[] {
@@ -45,6 +47,9 @@ export function buildClaudeArgs(opts: BuildArgsOptions): string[] {
   }
   if (opts.skillsDir) {
     args.push('--add-dir', opts.skillsDir);
+  }
+  if (opts.addDir) {
+    args.push('--add-dir', opts.addDir);
   }
   if (opts.systemPromptFile) {
     args.push('--append-system-prompt-file', opts.systemPromptFile);
@@ -69,9 +74,10 @@ export async function executeClaudeCode(
     skillsDir: config.skillsDir as string | undefined,
     systemPromptFile: config.systemPromptFile as string | undefined,
     effort: config.effort as string | undefined,
+    addDir: ctx.skillsDir ?? undefined,
   });
 
-  const prompt = ctx.context.prompt as string ?? '';
+  const prompt = (ctx.context.prompt as string) ?? '';
   const cwd = ctx.workingDirectory ?? process.cwd();
   const timeoutMs = (config.timeoutMs as number) ?? 300_000;
 
@@ -97,6 +103,9 @@ export async function executeClaudeCode(
     }
   }
 
+  // Merge injected env vars from execution context (CCO_API_URL, CCO_TASK_ID, etc.)
+  const contextEnv = ctx.env ?? {};
+
   return new Promise<AdapterExecutionResult>((resolve) => {
     let stdout = '';
     let stderr = '';
@@ -105,7 +114,7 @@ export async function executeClaudeCode(
     const proc = spawn(rawCommand, args, {
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, ...safeEnv },
+      env: { ...process.env, ...safeEnv, ...contextEnv },
     });
 
     const timer = setTimeout(() => {

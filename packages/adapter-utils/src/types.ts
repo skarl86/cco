@@ -27,6 +27,10 @@ export interface AdapterExecutionContext {
   readonly config: Record<string, unknown>;
   readonly context: Record<string, unknown>;
   readonly workingDirectory?: string;
+  /** Environment variables to inject into the adapter process */
+  readonly env?: Record<string, string>;
+  /** Path to a directory containing .claude/skills/ for --add-dir injection */
+  readonly skillsDir?: string;
   onLog(stream: 'stdout' | 'stderr', chunk: string): Promise<void>;
   onMeta?(meta: AdapterInvocationMeta): Promise<void>;
   onSpawn?(meta: { pid: number; startedAt: string }): Promise<void>;

@@ -8,64 +8,83 @@ import { emitEvent } from '../realtime/live-events.js';
 import { logger } from '../middleware/logger.js';
 import { execFileSync } from 'node:child_process';
 
+/** Get current git HEAD hash. Returns null if not a git repo. */
+function getGitHead(): string | null {
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: process.cwd(), timeout: 3000,
+    }).toString().trim();
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Auto-detect git work products (commits, branches) after a successful agent run.
- * Checks git log for recent commits and current branch, then registers them as work products.
+ * Auto-detect git work products by comparing HEAD before and after agent execution.
+ * Only registers commits that the agent actually created during this run.
  */
-function autoDetectWorkProducts(database: Database, teamId: string, taskId: string, runId: string): void {
+function autoDetectWorkProducts(
+  database: Database,
+  teamId: string,
+  taskId: string,
+  runId: string,
+  beforeHead: string | null,
+): void {
+  if (!beforeHead) return;
   const { db } = database;
   const cwd = process.cwd();
 
   try {
-    // Detect recent commits (last 5 minutes)
+    const afterHead = getGitHead();
+    if (!afterHead || afterHead === beforeHead) return;
+
+    // Get commits between before and after HEAD
     const gitLog = execFileSync('git', [
-      'log', '--oneline', '--since=5 minutes ago', '--format=%H|%s',
+      'log', `${beforeHead}..${afterHead}`, '--format=%h|%s',
     ], { cwd, timeout: 5000 }).toString().trim();
 
-    if (gitLog) {
-      const commits = gitLog.split('\n').filter(Boolean);
-      for (const line of commits) {
-        const [hash, ...msgParts] = line.split('|');
-        const message = msgParts.join('|');
-        if (!hash) continue;
+    if (!gitLog) return;
 
-        const shortHash = hash.slice(0, 7);
+    for (const line of gitLog.split('\n').filter(Boolean)) {
+      const sepIdx = line.indexOf('|');
+      if (sepIdx < 0) continue;
+      const shortHash = line.slice(0, sepIdx);
+      const message = line.slice(sepIdx + 1);
 
-        // Skip if already registered
-        const existing = db.select().from(workProducts)
-          .where(and(
-            eq(workProducts.teamId, teamId),
-            eq(workProducts.taskId, taskId),
-            eq(workProducts.type, 'commit'),
-            eq(workProducts.externalId, shortHash),
-          )).get();
-        if (existing) continue;
+      // Skip if already registered
+      const existing = db.select().from(workProducts)
+        .where(and(
+          eq(workProducts.teamId, teamId),
+          eq(workProducts.taskId, taskId),
+          eq(workProducts.type, 'commit'),
+          eq(workProducts.externalId, shortHash),
+        )).get();
+      if (existing) continue;
 
-        const now = Date.now();
-        db.insert(workProducts).values({
-          id: generateId('wp'),
-          teamId,
-          taskId,
-          runId,
-          type: 'commit',
-          provider: 'local',
-          externalId: shortHash,
-          title: `${shortHash} — ${message}`,
-          status: 'active',
-          reviewState: 'none',
-          isPrimary: 0,
-          healthStatus: 'unknown',
-          createdAt: now,
-          updatedAt: now,
-        }).run();
+      const now = Date.now();
+      db.insert(workProducts).values({
+        id: generateId('wp'),
+        teamId,
+        taskId,
+        runId,
+        type: 'commit',
+        provider: 'local',
+        externalId: shortHash,
+        title: `${shortHash} — ${message}`,
+        status: 'active',
+        reviewState: 'none',
+        isPrimary: 0,
+        healthStatus: 'unknown',
+        createdAt: now,
+        updatedAt: now,
+      }).run();
 
-        logger.info({ taskId, commit: shortHash }, 'Auto-detected commit work product');
-      }
+      logger.info({ taskId, commit: shortHash }, 'Auto-detected commit work product');
     }
 
-    // Detect current branch
+    // Detect current branch (if changed from main)
     const branch = execFileSync('git', ['branch', '--show-current'], {
-      cwd, timeout: 5000,
+      cwd, timeout: 3000,
     }).toString().trim();
 
     if (branch && branch !== 'main' && branch !== 'master') {
@@ -100,7 +119,6 @@ function autoDetectWorkProducts(database: Database, teamId: string, taskId: stri
       }
     }
   } catch (err) {
-    // Git not available or not a git repo — silently skip
     logger.debug({ taskId, err }, 'Work product auto-detection skipped');
   }
 }
@@ -186,6 +204,8 @@ export function createScheduler(deps: SchedulerDeps): Scheduler {
         const co = checkoutService.checkout(agent.teamId, task.id, agent.id, `pending-${agent.id}`);
         if (!co.success) continue;
 
+        // Capture git HEAD before execution for work product detection
+        const beforeHead = getGitHead();
         const prompt = buildTaskPrompt(task, agent.teamId);
 
         emitEvent('heartbeat.run.queued', agent.teamId, {
@@ -205,8 +225,8 @@ export function createScheduler(deps: SchedulerDeps): Scheduler {
           checkoutService.release(agent.teamId, task.id, 'todo', agent.id);
         } else {
           checkoutService.release(agent.teamId, task.id, 'done', agent.id);
-          // Auto-detect work products from git after successful run
-          autoDetectWorkProducts(database, agent.teamId, task.id, result.runId);
+          // Auto-detect work products by comparing git HEAD before/after run
+          autoDetectWorkProducts(database, agent.teamId, task.id, result.runId, beforeHead);
         }
 
         emitEvent('heartbeat.run.status', agent.teamId, {
