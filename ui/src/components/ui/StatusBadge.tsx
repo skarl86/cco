@@ -1,22 +1,29 @@
-const STATUS_COLORS: Record<string, string> = {
-  idle: 'bg-gray-100 text-gray-600',
-  running: 'bg-blue-100 text-blue-700 animate-pulse',
-  paused: 'bg-amber-100 text-amber-700',
-  error: 'bg-red-100 text-red-700',
-  completed: 'bg-emerald-100 text-emerald-700',
-  failed: 'bg-red-100 text-red-700',
-  queued: 'bg-violet-100 text-violet-700',
-  cancelled: 'bg-gray-100 text-gray-500',
-  backlog: 'bg-gray-100 text-gray-600',
-  todo: 'bg-sky-100 text-sky-700',
-  in_progress: 'bg-blue-100 text-blue-700',
-  in_review: 'bg-amber-100 text-amber-700',
-  done: 'bg-emerald-100 text-emerald-700',
-  active: 'bg-emerald-100 text-emerald-700',
-  pending: 'bg-amber-100 text-amber-700',
-  approved: 'bg-emerald-100 text-emerald-700',
-  rejected: 'bg-red-100 text-red-700',
+type StatusStyle = { bg: string; text: string; pulse?: boolean };
+
+const STATUS_STYLES: Record<string, StatusStyle> = {
+  idle:        { bg: 'var(--color-bg-alt)', text: 'var(--color-text-muted)' },
+  running:     { bg: 'var(--color-accent-light)', text: 'var(--color-accent-text)', pulse: true },
+  paused:      { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  error:       { bg: 'var(--color-error-light)', text: 'var(--color-error)' },
+  completed:   { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  failed:      { bg: 'var(--color-error-light)', text: 'var(--color-error)' },
+  queued:      { bg: 'var(--color-accent-light)', text: 'var(--color-accent-text)' },
+  cancelled:   { bg: 'var(--color-bg-alt)', text: 'var(--color-text-muted)' },
+  backlog:     { bg: 'var(--color-bg-alt)', text: 'var(--color-text-muted)' },
+  todo:        { bg: 'var(--color-accent-light)', text: 'var(--color-accent-text)' },
+  in_progress: { bg: 'var(--color-accent-light)', text: 'var(--color-accent-text)', pulse: true },
+  in_review:   { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  done:        { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  active:      { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  pending:     { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  provisioning: { bg: 'var(--color-accent-light)', text: 'var(--color-accent-text)', pulse: true },
+  ready:       { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  archived:    { bg: 'var(--color-bg-alt)', text: 'var(--color-text-muted)' },
+  approved:    { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  rejected:    { bg: 'var(--color-error-light)', text: 'var(--color-error)' },
 };
+
+const DEFAULT_STYLE: StatusStyle = { bg: 'var(--color-bg-alt)', text: 'var(--color-text-muted)' };
 
 interface StatusBadgeProps {
   status: string;
@@ -24,10 +31,11 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
-  const color = STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-600';
+  const s = STATUS_STYLES[status] ?? DEFAULT_STYLE;
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium tracking-wide uppercase ${color} ${className}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium tracking-wide uppercase ${s.pulse ? 'animate-pulse' : ''} ${className}`}
+      style={{ background: s.bg, color: s.text }}
     >
       {status.replace(/_/g, ' ')}
     </span>

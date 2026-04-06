@@ -1,16 +1,13 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { useAgents, useCreateAgent, useRunAgent } from '@/api/queries';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Card } from '@/components/ui/Card';
 import { useTeamId } from '@/hooks/useTeamId';
-import { Bot, Play, Plus } from 'lucide-react';
+import { Bot, Play, Plus, ChevronRight } from 'lucide-react';
 
 const ROLE_ICONS: Record<string, string> = {
-  architect: 'A',
-  developer: 'D',
-  reviewer: 'R',
-  tester: 'T',
-  general: 'G',
+  architect: 'A', developer: 'D', reviewer: 'R', tester: 'T', general: 'G',
 };
 
 export function Agents() {
@@ -20,7 +17,6 @@ export function Agents() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState('general');
-  const [runPrompt, setRunPrompt] = useState<{ agentId: string; prompt: string } | null>(null);
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -33,10 +29,11 @@ export function Agents() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Agents</h2>
+        <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>Agents</h2>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+          style={{ background: 'var(--color-accent)', color: 'white' }}
         >
           <Plus size={16} /> New Agent
         </button>
@@ -46,20 +43,22 @@ export function Agents() {
         <Card className="mb-6">
           <form onSubmit={handleCreate} className="flex gap-3 items-end">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Name</label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text-muted)' }}>Name</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Architect Bot"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Role</label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text-muted)' }}>Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 text-sm rounded-lg outline-none"
+                style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
               >
                 {['general', 'architect', 'developer', 'reviewer', 'tester'].map((r) => (
                   <option key={r} value={r}>{r}</option>
@@ -69,7 +68,8 @@ export function Agents() {
             <button
               type="submit"
               disabled={createAgent.isPending}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium rounded-lg disabled:opacity-50"
+              style={{ background: 'var(--color-accent)', color: 'white' }}
             >
               Create
             </button>
@@ -79,72 +79,38 @@ export function Agents() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {agents.map((agent: any) => (
-          <Card key={agent.id} className="relative group">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                  {ROLE_ICONS[agent.role] ?? 'G'}
+          <Link key={agent.id} to={`/agents/${agent.id}`} className="block group">
+            <Card>
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+                    style={{ background: 'var(--color-accent)' }}
+                  >
+                    {ROLE_ICONS[agent.role] ?? 'G'}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold" style={{ color: 'var(--color-text)' }}>{agent.name}</h3>
+                    <p className="text-xs capitalize" style={{ color: 'var(--color-text-muted)' }}>{agent.role}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{agent.name}</h3>
-                  <p className="text-xs text-gray-400 capitalize">{agent.role}</p>
-                </div>
+                <StatusBadge status={agent.status} />
               </div>
-              <StatusBadge status={agent.status} />
-            </div>
-            <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-              <span className="text-xs text-gray-400 font-mono">{agent.adapterType}</span>
-              <RunButton teamId={teamId} agentId={agent.id} />
-            </div>
-          </Card>
+              <div className="flex items-center justify-between mt-4 pt-3" style={{ borderTop: '1px solid var(--color-border)' }}>
+                <span className="text-xs font-mono" style={{ color: 'var(--color-text-muted)' }}>{agent.adapterType}</span>
+                <ChevronRight size={16} style={{ color: 'var(--color-text-muted)' }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </Card>
+          </Link>
         ))}
       </div>
 
       {agents.length === 0 && (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16" style={{ color: 'var(--color-text-muted)' }}>
           <Bot size={48} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm">No agents yet. Create one to get started.</p>
         </div>
       )}
     </div>
-  );
-}
-
-function RunButton({ teamId, agentId }: { teamId: string; agentId: string }) {
-  const runAgent = useRunAgent(teamId, agentId);
-  const [prompt, setPrompt] = useState('');
-  const [open, setOpen] = useState(false);
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
-      >
-        <Play size={12} /> Run
-      </button>
-    );
-  }
-
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!prompt.trim()) return;
-        runAgent.mutate({ prompt }, { onSuccess: () => { setPrompt(''); setOpen(false); } });
-      }}
-      className="flex gap-2"
-    >
-      <input
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Prompt..."
-        className="w-40 px-2 py-1 text-xs border border-gray-200 rounded"
-        autoFocus
-      />
-      <button type="submit" disabled={runAgent.isPending} className="text-xs text-blue-600 font-medium">
-        {runAgent.isPending ? '...' : 'Go'}
-      </button>
-    </form>
   );
 }
