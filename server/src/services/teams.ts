@@ -1,5 +1,23 @@
 import { eq } from 'drizzle-orm';
-import { teams } from '@cco/db';
+import {
+  teams,
+  activityLog,
+  taskComments,
+  feedback,
+  documents,
+  costEvents,
+  runs,
+  tasks,
+  approvals,
+  routines,
+  routineTriggers,
+  routineRuns,
+  projects,
+  goals,
+  agents,
+  agentApiKeys,
+  budgetPolicies,
+} from '@cco/db';
 import { generateId } from '@cco/shared';
 import type { Database } from '@cco/db';
 
@@ -41,6 +59,27 @@ export function createTeamsService(database: Database) {
 
       db.update(teams).set(updates).where(eq(teams.id, id)).run();
       return db.select().from(teams).where(eq(teams.id, id)).get();
+    },
+
+    remove(id: string) {
+      // Cascade delete all related data in dependency order
+      db.delete(activityLog).where(eq(activityLog.teamId, id)).run();
+      db.delete(taskComments).where(eq(taskComments.teamId, id)).run();
+      db.delete(feedback).where(eq(feedback.teamId, id)).run();
+      db.delete(documents).where(eq(documents.teamId, id)).run();
+      db.delete(costEvents).where(eq(costEvents.teamId, id)).run();
+      db.delete(runs).where(eq(runs.teamId, id)).run();
+      db.delete(tasks).where(eq(tasks.teamId, id)).run();
+      db.delete(approvals).where(eq(approvals.teamId, id)).run();
+      db.delete(routineRuns).where(eq(routineRuns.teamId, id)).run();
+      db.delete(routineTriggers).where(eq(routineTriggers.teamId, id)).run();
+      db.delete(routines).where(eq(routines.teamId, id)).run();
+      db.delete(projects).where(eq(projects.teamId, id)).run();
+      db.delete(goals).where(eq(goals.teamId, id)).run();
+      db.delete(agents).where(eq(agents.teamId, id)).run();
+      db.delete(agentApiKeys).where(eq(agentApiKeys.teamId, id)).run();
+      db.delete(budgetPolicies).where(eq(budgetPolicies.teamId, id)).run();
+      db.delete(teams).where(eq(teams.id, id)).run();
     },
   };
 }

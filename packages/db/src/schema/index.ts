@@ -9,3 +9,12 @@ export { budgetPolicies } from './budget-policies.js';
 export { routines } from './routines.js';
 export { taskComments } from './task-comments.js';
 export { activityLog } from './activity-log.js';
+// Phase 1 tables
+export { agentApiKeys } from './agent-api-keys.js';
+export { goals } from './goals.js';
+export { routineTriggers } from './routine-triggers.js';
+export { routineRuns } from './routine-runs.js';
+export { documents } from './documents.js';
+export { feedback } from './feedback.js';
+export { executionWorkspaces } from './execution-workspaces.js';
+export { workspaceRuns } from './workspace-runs.js';
