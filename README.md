@@ -1,5 +1,14 @@
 # CCO — Claude Code Orchestrator
 
+[![Node.js](https://img.shields.io/badge/Node.js-24+-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
+[![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)](https://expressjs.com)
+[![SQLite](https://img.shields.io/badge/SQLite-Drizzle_ORM-003B57?logo=sqlite&logoColor=white)](https://orm.drizzle.team)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Docker](https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com)
+
 AI 에이전트 팀 오케스트레이션 플랫폼. 여러 AI 에이전트를 팀으로 구성하고, 작업을 할당하고, 비용과 실행을 중앙에서 관리합니다.
 
 ## 주요 기능
@@ -141,3 +150,5 @@ docker compose -f docker-compose.quickstart.yml up
 - **CLI**: Commander.js, @clack/prompts
 - **Real-time**: WebSocket (ws)
 - **Security**: AES-256-GCM secrets, SHA256 API keys, timing-safe auth
+
+<!-- 테스트 커밋용 줄 -->
