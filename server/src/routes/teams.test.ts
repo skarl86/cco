@@ -2,6 +2,10 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createApp, type App } from '../app.js';
 import type { Server } from 'node:http';
 
+function asBody(json: unknown): Record<string, unknown> {
+  return json as Record<string, unknown>;
+}
+
 describe('Teams API', () => {
   let app: App;
   let server: Server;
@@ -31,10 +35,11 @@ describe('Teams API', () => {
       body: JSON.stringify({ name: 'Test Team', description: 'A test' }),
     });
     expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body.data.name).toBe('Test Team');
-    expect(body.data.id).toBeDefined();
-    expect(body.data.status).toBe('active');
+    const body = asBody(await res.json());
+    const data = body.data as Record<string, unknown>;
+    expect(data.name).toBe('Test Team');
+    expect(data.id).toBeDefined();
+    expect(data.status).toBe('active');
   });
 
   it('POST /api/teams rejects empty name', async () => {
@@ -49,8 +54,8 @@ describe('Teams API', () => {
   it('GET /api/teams lists teams', async () => {
     const res = await fetch(`${baseUrl}/api/teams`);
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.data.length).toBeGreaterThanOrEqual(1);
+    const body = asBody(await res.json());
+    expect((body.data as unknown[]).length).toBeGreaterThanOrEqual(1);
   });
 
   it('GET /api/teams/:id returns a team', async () => {
@@ -60,12 +65,12 @@ describe('Teams API', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Get Team' }),
     });
-    const { data: created } = await createRes.json();
+    const created = (asBody(await createRes.json()).data as Record<string, unknown>);
 
     const res = await fetch(`${baseUrl}/api/teams/${created.id}`);
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.data.name).toBe('Get Team');
+    const body = asBody(await res.json());
+    expect((body.data as Record<string, unknown>).name).toBe('Get Team');
   });
 
   it('GET /api/teams/:id returns 404 for missing team', async () => {
@@ -79,7 +84,7 @@ describe('Teams API', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Original' }),
     });
-    const { data: created } = await createRes.json();
+    const created = (asBody(await createRes.json()).data as Record<string, unknown>);
 
     const res = await fetch(`${baseUrl}/api/teams/${created.id}`, {
       method: 'PATCH',
@@ -87,7 +92,7 @@ describe('Teams API', () => {
       body: JSON.stringify({ name: 'Updated' }),
     });
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.data.name).toBe('Updated');
+    const body = asBody(await res.json());
+    expect((body.data as Record<string, unknown>).name).toBe('Updated');
   });
 });

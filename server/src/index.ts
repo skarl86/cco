@@ -1,41 +1,60 @@
-import { createApp } from './app.js';
+import { createApp, logger } from './app.js';
 import { claudeCodeAdapter } from '@cco/adapter-claude-code';
-import path from 'node:path';
-import os from 'node:os';
+import { geminiAdapter } from '@cco/adapter-gemini';
+import { codexAdapter } from '@cco/adapter-codex';
+import { openCodeAdapter } from '@cco/adapter-opencode';
+import { attachWebSocketServer } from './realtime/index.js';
+import { loadConfig, getCcoHome } from './config.js';
 import fs from 'node:fs';
 
-const CCO_HOME = process.env.CCO_HOME ?? path.join(os.homedir(), '.cco');
-const DB_PATH = process.env.CCO_DB_PATH ?? path.join(CCO_HOME, 'cco.db');
-const PORT = parseInt(process.env.CCO_PORT ?? '3100', 10);
-const API_KEY = process.env.CCO_API_KEY;
+// Load layered config (env > file > defaults)
+const config = loadConfig();
+
+const CCO_HOME = getCcoHome();
+const DB_PATH = config.database?.path ?? `${CCO_HOME}/cco.db`;
+const PORT = config.server?.port ?? 3100;
+const API_KEY = config.auth?.apiKey;
 
 // Ensure home directory exists
 fs.mkdirSync(CCO_HOME, { recursive: true });
 
 if (!API_KEY) {
-  console.warn('[SECURITY] CCO_API_KEY is not set — all API routes are unauthenticated');
+  logger.warn('CCO_API_KEY is not set — all API routes are unauthenticated');
 }
 
-const app = createApp({ dbPath: DB_PATH, apiKey: API_KEY, adapters: [claudeCodeAdapter] });
+const app = createApp({ dbPath: DB_PATH, apiKey: API_KEY, adapters: [claudeCodeAdapter, geminiAdapter, codexAdapter, openCodeAdapter] });
 
-const SCHEDULER_INTERVAL_MS = parseInt(process.env.CCO_SCHEDULER_INTERVAL_MS ?? '60000', 10);
+const SCHEDULER_INTERVAL_MS = config.scheduler?.intervalMs ?? 60_000;
 
 const server = app.express.listen(PORT, () => {
-  console.log(`CCO server running on http://localhost:${PORT}`);
-  app.scheduler.start(SCHEDULER_INTERVAL_MS);
-  console.log(`Scheduler started (interval: ${SCHEDULER_INTERVAL_MS}ms)`);
+  logger.info({ port: PORT }, 'CCO server running');
+
+  // Attach WebSocket server for real-time events
+  attachWebSocketServer(server);
+  logger.info('WebSocket server attached');
+
+  // Start heartbeat scheduler
+  if (config.scheduler?.enabled !== false) {
+    app.scheduler.start(SCHEDULER_INTERVAL_MS);
+    logger.info({ intervalMs: SCHEDULER_INTERVAL_MS }, 'Scheduler started');
+  }
 });
 
 app.server = server;
 
-process.on('SIGINT', () => {
-  server.close();
-  app.close();
-  process.exit(0);
-});
+function shutdown() {
+  logger.info('Shutting down...');
+  server.close(() => {
+    app.close();
+    logger.info('Server closed');
+    process.exit(0);
+  });
+  // Force exit after 10s if graceful shutdown hangs
+  setTimeout(() => {
+    logger.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10_000).unref();
+}
 
-process.on('SIGTERM', () => {
-  server.close();
-  app.close();
-  process.exit(0);
-});
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

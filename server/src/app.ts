@@ -2,8 +2,9 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import { createDatabase, type Database } from '@cco/db';
 import type { Server } from 'node:http';
 import path from 'node:path';
+import os from 'node:os';
 import fs from 'node:fs';
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import type { ServerAdapterModule, AdapterExecutionContext, AdapterExecutionResult } from '@cco/adapter-utils';
 import { teamsRouter } from './routes/teams.js';
 import { agentsRouter } from './routes/agents.js';
@@ -13,11 +14,31 @@ import { commentsRouter } from './routes/comments.js';
 import { approvalsRouter } from './routes/approvals.js';
 import { routinesRouter } from './routes/routines.js';
 import { projectsRouter } from './routes/projects.js';
+import { goalsRouter } from './routes/goals.js';
+import { activityRouter } from './routes/activity.js';
+import { agentKeysRouter } from './routes/agent-keys.js';
+import { agentDetailsRouter } from './routes/agent-details.js';
+import { documentsRouter } from './routes/documents.js';
+import { feedbackRouter, taskFeedbackRouter } from './routes/feedback.js';
+import { dashboardRouter, sidebarBadgesRouter } from './routes/dashboard.js';
+import { costsRouter } from './routes/costs.js';
+import { assetsRouter } from './routes/assets.js';
+import { secretsRouter } from './routes/secrets.js';
+import { adaptersRouter } from './routes/adapters.js';
+import { exportImportRouter } from './routes/export-import.js';
+import { workspacesRouter } from './routes/workspaces.js';
+import { createLocalDiskStorage, type StorageProvider } from './storage/index.js';
+import { createLocalEncryptedSecrets, type SecretsProvider } from './secrets/index.js';
 import { AdapterRegistry } from './adapters/registry.js';
 import { createExecutionService, type ExecutionService } from './services/execution.js';
 import { createScheduler, type Scheduler } from './services/scheduler.js';
 import { createCheckoutService } from './services/checkout.js';
 import { createTasksService } from './services/tasks.js';
+import { httpLogger, logger } from './middleware/logger.js';
+import { errorHandler } from './middleware/error-handler.js';
+import { unauthorized } from './errors.js';
+
+export { logger } from './middleware/logger.js';
 
 export interface AppConfig {
   readonly dbPath: string;
@@ -31,6 +52,9 @@ export interface App {
   readonly registry: AdapterRegistry;
   readonly executionService: ExecutionService;
   readonly scheduler: Scheduler;
+  readonly storage: StorageProvider;
+  readonly secrets: SecretsProvider;
+  readonly logger: typeof logger;
   server?: Server;
   close(): void;
 }
@@ -71,6 +95,8 @@ export function createApp(config: AppConfig): App {
     }
   }
 
+  const storage = createLocalDiskStorage(path.join(os.homedir(), '.cco', 'storage'));
+  const secrets = createLocalEncryptedSecrets();
   const executionService = createExecutionService(database, registry);
   const checkoutService = createCheckoutService(database);
   const tasksService = createTasksService(database);
@@ -82,9 +108,15 @@ export function createApp(config: AppConfig): App {
   });
   const app = express();
 
-  app.use(express.json());
+  // --- Middleware Pipeline ---
 
-  // Health endpoint
+  // 1. HTTP request logging (pino)
+  app.use(httpLogger);
+
+  // 2. JSON body parsing
+  app.use(express.json({ limit: '15mb' }));
+
+  // 3. Health endpoint (always public, before auth)
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
       status: 'ok',
@@ -94,24 +126,23 @@ export function createApp(config: AppConfig): App {
     });
   });
 
-  // API key auth (optional)
+  // 4. API key authentication (optional)
   if (config.apiKey) {
     const key = config.apiKey;
-    app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+    app.use('/api', (req: Request, _res: Response, next: NextFunction) => {
       if (req.path === '/health') { next(); return; }
       const auth = req.headers.authorization ?? '';
       const expected = `Bearer ${key}`;
-      const isValid = auth.length === expected.length &&
-        timingSafeEqual(Buffer.from(auth), Buffer.from(expected));
-      if (!isValid) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
+      // Hash both sides to constant length, preventing timing oracle on length mismatch
+      const ha = createHash('sha256').update(auth).digest();
+      const hb = createHash('sha256').update(expected).digest();
+      const isValid = timingSafeEqual(ha, hb);
+      if (!isValid) throw unauthorized();
       next();
     });
   }
 
-  // Resource routes
+  // --- Resource Routes ---
   app.use('/api/teams', teamsRouter(database));
   app.use('/api/teams/:teamId/agents', agentsRouter(database));
   app.use('/api/teams/:teamId/tasks', tasksRouter(database));
@@ -119,6 +150,21 @@ export function createApp(config: AppConfig): App {
   app.use('/api/teams/:teamId/approvals', approvalsRouter(database));
   app.use('/api/teams/:teamId/routines', routinesRouter(database));
   app.use('/api/teams/:teamId/projects', projectsRouter(database));
+  app.use('/api/teams/:teamId/goals', goalsRouter(database));
+  app.use('/api/teams/:teamId/activity', activityRouter(database));
+  app.use('/api/teams/:teamId/tasks/:taskId/documents', documentsRouter(database));
+  app.use('/api/teams/:teamId/tasks/:taskId/feedback', taskFeedbackRouter(database));
+  app.use('/api/teams/:teamId/feedback', feedbackRouter(database));
+  app.use('/api/teams/:teamId/agents/:agentId/keys', agentKeysRouter(database));
+  app.use('/api/teams/:teamId/dashboard', dashboardRouter(database));
+  app.use('/api/teams/:teamId/costs', costsRouter(database));
+  app.use('/api/teams/:teamId/assets', assetsRouter(database, storage));
+  app.use('/api/teams/:teamId/workspaces', workspacesRouter(database));
+  app.use('/api/teams/:teamId/secrets', secretsRouter(secrets));
+  app.use('/api/teams/:teamId', exportImportRouter(database));
+  app.use('/api/sidebar-badges', sidebarBadgesRouter(database));
+  app.use('/api/adapters', adaptersRouter(registry));
+  app.use('/api/agents/:agentId', agentDetailsRouter(database));
   app.use('/api', runsRouter(executionService));
 
   // 404 handler for /api routes
@@ -135,11 +181,8 @@ export function createApp(config: AppConfig): App {
     });
   }
 
-  // Error handler
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  });
+  // --- Centralized Error Handler (must be last) ---
+  app.use(errorHandler);
 
   return {
     express: app,
@@ -147,6 +190,9 @@ export function createApp(config: AppConfig): App {
     registry,
     executionService,
     scheduler,
+    storage,
+    secrets,
+    logger,
     close() {
       scheduler.stop();
       database.close();

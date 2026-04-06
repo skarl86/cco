@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
 import { createApprovalsService } from '../services/approvals.js';
+import { badRequest, notFound } from '../errors.js';
 import type { Database } from '@cco/db';
+import { param } from '../middleware/params.js';
 
 export function approvalsRouter(database: Database): Router {
   const router = Router({ mergeParams: true });
@@ -9,28 +11,24 @@ export function approvalsRouter(database: Database): Router {
   router.get('/', (req: Request, res: Response) => {
     const { status } = req.query;
     const data = status === 'pending'
-      ? service.listPending(req.params.teamId)
-      : service.list(req.params.teamId);
+      ? service.listPending(param(req, 'teamId'))
+      : service.list(param(req, 'teamId'));
     res.json({ data });
   });
 
   router.get('/:id', (req: Request, res: Response) => {
-    const approval = service.getById(req.params.teamId, req.params.id);
-    if (!approval) {
-      res.status(404).json({ error: 'Approval not found' });
-      return;
-    }
+    const approval = service.getById(param(req, 'teamId'), param(req, 'id'));
+    if (!approval) throw notFound('Approval not found');
     res.json({ data: approval });
   });
 
   router.post('/', (req: Request, res: Response) => {
     const { type, requestedByAgentId, payload } = req.body;
     if (!type || !payload) {
-      res.status(400).json({ error: 'type and payload are required' });
-      return;
+      throw badRequest('type and payload are required');
     }
     const approval = service.create({
-      teamId: req.params.teamId,
+      teamId: param(req, 'teamId') as string,
       type,
       requestedByAgentId,
       payload,
@@ -41,16 +39,10 @@ export function approvalsRouter(database: Database): Router {
   router.post('/:id/decide', (req: Request, res: Response) => {
     const { decision, note } = req.body;
     if (!decision || !['approved', 'rejected'].includes(decision)) {
-      res.status(400).json({ error: 'decision must be "approved" or "rejected"' });
-      return;
+      throw badRequest('decision must be "approved" or "rejected"');
     }
-    try {
-      const result = service.decide(req.params.teamId, req.params.id, decision, note);
-      res.json({ data: result });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Decision failed';
-      res.status(400).json({ error: message });
-    }
+    const result = service.decide(param(req, 'teamId'), param(req, 'id'), decision, note);
+    res.json({ data: result });
   });
 
   return router;

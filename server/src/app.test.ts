@@ -3,6 +3,10 @@ import { createApp, type App } from './app.js';
 import { claudeCodeAdapter } from '@cco/adapter-claude-code';
 import type { Server } from 'node:http';
 
+function asBody(json: unknown): Record<string, unknown> {
+  return json as Record<string, unknown>;
+}
+
 describe('Express app', () => {
   let app: App;
 
@@ -68,14 +72,14 @@ describe('Health endpoint integration', () => {
   it('GET /api/health returns 200', async () => {
     const res = await fetch(`${baseUrl}/api/health`);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = asBody(await res.json());
     expect(body.status).toBe('ok');
     expect(body.version).toBeDefined();
   });
 
   it('GET /api/health returns database status', async () => {
     const res = await fetch(`${baseUrl}/api/health`);
-    const body = await res.json();
+    const body = asBody(await res.json());
     expect(body.database).toBe('connected');
   });
 

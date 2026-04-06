@@ -1,7 +1,10 @@
 import { Router, type Request, type Response } from 'express';
 import { CreateTeamSchema } from '@cco/shared';
 import { createTeamsService } from '../services/teams.js';
+import { notFound } from '../errors.js';
+import { validate } from '../middleware/validate.js';
 import type { Database } from '@cco/db';
+import { param } from '../middleware/params.js';
 
 export function teamsRouter(database: Database): Router {
   const router = Router();
@@ -13,32 +16,28 @@ export function teamsRouter(database: Database): Router {
   });
 
   router.get('/:id', (req: Request, res: Response) => {
-    const team = service.getById(req.params.id);
-    if (!team) {
-      res.status(404).json({ error: 'Team not found' });
-      return;
-    }
+    const team = service.getById(param(req, 'id'));
+    if (!team) throw notFound('Team not found');
     res.json({ data: team });
   });
 
-  router.post('/', (req: Request, res: Response) => {
-    const parsed = CreateTeamSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
-      return;
-    }
-    const team = service.create(parsed.data);
+  router.post('/', validate({ body: CreateTeamSchema }), (req: Request, res: Response) => {
+    const team = service.create(req.body);
     res.status(201).json({ data: team });
   });
 
   router.patch('/:id', (req: Request, res: Response) => {
-    const existing = service.getById(req.params.id);
-    if (!existing) {
-      res.status(404).json({ error: 'Team not found' });
-      return;
-    }
-    const updated = service.update(req.params.id, req.body);
+    const existing = service.getById(param(req, 'id'));
+    if (!existing) throw notFound('Team not found');
+    const updated = service.update(param(req, 'id'), req.body);
     res.json({ data: updated });
+  });
+
+  router.delete('/:id', (req: Request, res: Response) => {
+    const existing = service.getById(param(req, 'id'));
+    if (!existing) throw notFound('Team not found');
+    service.remove(param(req, 'id'));
+    res.status(204).end();
   });
 
   return router;
