@@ -6,6 +6,37 @@ import { parseCron, cronMatches } from './cron.js';
 import { emitEvent } from '../realtime/live-events.js';
 import { logger } from '../middleware/logger.js';
 
+/**
+ * Build a prompt that instructs the agent to register work products after completing work.
+ */
+function buildTaskPrompt(task: { title: string; description: string | null; identifier: string | null; teamId: string; id: string }, teamId: string): string {
+  return `## Task
+Title: ${task.title}
+${task.description ? `Description: ${task.description}` : ''}
+Identifier: ${task.identifier}
+
+## Instructions
+1. Complete the task described above.
+2. After completing the work, register any outputs you created using the CCO Work Products API:
+
+   For each commit, branch, or PR you create, call:
+
+   POST http://localhost:3100/api/teams/${teamId}/tasks/${task.id}/work-products
+   Content-Type: application/json
+
+   For a commit:
+   {"type": "commit", "provider": "local", "title": "<commit hash> — <message>", "externalId": "<hash>"}
+
+   For a branch:
+   {"type": "branch", "provider": "local", "title": "<branch-name>"}
+
+   For a pull request:
+   {"type": "pull_request", "provider": "github", "title": "<PR title>", "url": "<PR URL>", "externalId": "<PR number>", "isPrimary": true, "status": "ready_for_review", "reviewState": "needs_review"}
+
+3. You can use curl or fetch to call the API.
+`;
+}
+
 interface SchedulerDeps {
   readonly database: Database;
   readonly executionService: ExecutionService;
@@ -56,7 +87,7 @@ export function createScheduler(deps: SchedulerDeps): Scheduler {
         const co = checkoutService.checkout(agent.teamId, task.id, agent.id, `pending-${agent.id}`);
         if (!co.success) continue;
 
-        const prompt = `Task: ${task.title}\n${task.description ?? ''}\nIdentifier: ${task.identifier}`;
+        const prompt = buildTaskPrompt(task, agent.teamId);
 
         emitEvent('heartbeat.run.queued', agent.teamId, {
           agentId: agent.id,
