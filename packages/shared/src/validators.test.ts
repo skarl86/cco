@@ -161,3 +161,27 @@ describe('CreateTaskSchema', () => {
     expect(() => CreateTaskSchema.parse({ title: '' })).toThrow();
   });
 });
+
+describe('CreateAgentSchema adapterConfig', () => {
+  it('parses with empty adapterConfig', () => {
+    const result = CreateAgentSchema.parse({ name: 'Bot', adapterConfig: {} });
+    expect(result.adapterConfig).toEqual({});
+  });
+
+  it('parses with arbitrary key-value adapterConfig', () => {
+    const result = CreateAgentSchema.parse({
+      name: 'Bot',
+      adapterConfig: { model: 'claude-sonnet-4-6', maxTurns: 5, allowUnsafe: true },
+    });
+    expect(result.adapterConfig).toEqual({ model: 'claude-sonnet-4-6', maxTurns: 5, allowUnsafe: true });
+  });
+
+  it('allows omitting adapterConfig', () => {
+    const result = CreateAgentSchema.parse({ name: 'Bot' });
+    expect(result.adapterConfig).toBeUndefined();
+  });
+
+  it('rejects non-object adapterConfig', () => {
+    expect(() => CreateAgentSchema.parse({ name: 'Bot', adapterConfig: 'string' })).toThrow();
+  });
+});

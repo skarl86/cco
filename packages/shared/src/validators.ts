@@ -43,7 +43,7 @@ export const CreateAgentSchema = z.object({
   title: z.string().optional(),
   reportsTo: z.string().optional(),
   adapterType: z.string().default('claude_code'),
-  adapterConfig: z.record(z.unknown()).optional(),
+  adapterConfig: z.record(z.string(), z.unknown()).optional(),
   budgetMonthlyCents: z.number().int().min(0).optional(),
 });
 
