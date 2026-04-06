@@ -26,6 +26,7 @@ import { assetsRouter } from './routes/assets.js';
 import { secretsRouter } from './routes/secrets.js';
 import { adaptersRouter } from './routes/adapters.js';
 import { exportImportRouter } from './routes/export-import.js';
+import { labelsRouter, taskLabelsRouter } from './routes/labels.js';
 import { workspacesRouter } from './routes/workspaces.js';
 import { createLocalDiskStorage, type StorageProvider } from './storage/index.js';
 import { createLocalEncryptedSecrets, type SecretsProvider } from './secrets/index.js';
@@ -153,6 +154,8 @@ export function createApp(config: AppConfig): App {
   app.use('/api/teams/:teamId/goals', goalsRouter(database));
   app.use('/api/teams/:teamId/activity', activityRouter(database));
   app.use('/api/teams/:teamId/tasks/:taskId/documents', documentsRouter(database));
+  app.use('/api/teams/:teamId/labels', labelsRouter(database));
+  app.use('/api/teams/:teamId/tasks/:taskId/labels', taskLabelsRouter(database));
   app.use('/api/teams/:teamId/tasks/:taskId/feedback', taskFeedbackRouter(database));
   app.use('/api/teams/:teamId/feedback', feedbackRouter(database));
   app.use('/api/teams/:teamId/agents/:agentId/keys', agentKeysRouter(database));
