@@ -17,8 +17,12 @@ if (!API_KEY) {
 
 const app = createApp({ dbPath: DB_PATH, apiKey: API_KEY });
 
+const SCHEDULER_INTERVAL_MS = parseInt(process.env.CCO_SCHEDULER_INTERVAL_MS ?? '60000', 10);
+
 const server = app.express.listen(PORT, () => {
   console.log(`CCO server running on http://localhost:${PORT}`);
+  app.scheduler.start(SCHEDULER_INTERVAL_MS);
+  console.log(`Scheduler started (interval: ${SCHEDULER_INTERVAL_MS}ms)`);
 });
 
 app.server = server;

@@ -15,6 +15,9 @@ import { routinesRouter } from './routes/routines.js';
 import { projectsRouter } from './routes/projects.js';
 import { AdapterRegistry } from './adapters/registry.js';
 import { createExecutionService, type ExecutionService } from './services/execution.js';
+import { createScheduler, type Scheduler } from './services/scheduler.js';
+import { createCheckoutService } from './services/checkout.js';
+import { createTasksService } from './services/tasks.js';
 
 export interface AppConfig {
   readonly dbPath: string;
@@ -27,6 +30,7 @@ export interface App {
   readonly database: Database;
   readonly registry: AdapterRegistry;
   readonly executionService: ExecutionService;
+  readonly scheduler: Scheduler;
   server?: Server;
   close(): void;
 }
@@ -68,6 +72,14 @@ export function createApp(config: AppConfig): App {
   }
 
   const executionService = createExecutionService(database, registry);
+  const checkoutService = createCheckoutService(database);
+  const tasksService = createTasksService(database);
+  const scheduler = createScheduler({
+    database,
+    executionService,
+    checkoutService,
+    tasksService,
+  });
   const app = express();
 
   app.use(express.json());
@@ -134,7 +146,9 @@ export function createApp(config: AppConfig): App {
     database,
     registry,
     executionService,
+    scheduler,
     close() {
+      scheduler.stop();
       database.close();
     },
   };

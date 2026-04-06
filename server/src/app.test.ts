@@ -18,6 +18,13 @@ describe('Express app', () => {
     expect(app.express).toBeDefined();
     expect(app.database).toBeDefined();
   });
+
+  it('creates app with scheduler', () => {
+    expect(app.scheduler).toBeDefined();
+    expect(typeof app.scheduler.tick).toBe('function');
+    expect(typeof app.scheduler.start).toBe('function');
+    expect(typeof app.scheduler.stop).toBe('function');
+  });
 });
 
 describe('Health endpoint integration', () => {
