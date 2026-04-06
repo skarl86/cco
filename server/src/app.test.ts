@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createApp, type App } from './app.js';
+import { claudeCodeAdapter } from '@cco/adapter-claude-code';
 import type { Server } from 'node:http';
 
 describe('Express app', () => {
@@ -24,6 +25,19 @@ describe('Express app', () => {
     expect(typeof app.scheduler.tick).toBe('function');
     expect(typeof app.scheduler.start).toBe('function');
     expect(typeof app.scheduler.stop).toBe('function');
+  });
+});
+
+describe('Adapter registration', () => {
+  let app: App;
+
+  afterAll(() => {
+    app?.close();
+  });
+
+  it('registers claude_code adapter when passed via config', () => {
+    app = createApp({ dbPath: ':memory:', adapters: [claudeCodeAdapter] });
+    expect(app.registry.has('claude_code')).toBe(true);
   });
 });
 

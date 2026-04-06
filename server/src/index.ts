@@ -1,4 +1,5 @@
 import { createApp } from './app.js';
+import { claudeCodeAdapter } from '@cco/adapter-claude-code';
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
@@ -15,7 +16,7 @@ if (!API_KEY) {
   console.warn('[SECURITY] CCO_API_KEY is not set — all API routes are unauthenticated');
 }
 
-const app = createApp({ dbPath: DB_PATH, apiKey: API_KEY });
+const app = createApp({ dbPath: DB_PATH, apiKey: API_KEY, adapters: [claudeCodeAdapter] });
 
 const SCHEDULER_INTERVAL_MS = parseInt(process.env.CCO_SCHEDULER_INTERVAL_MS ?? '60000', 10);
 

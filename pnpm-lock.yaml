@@ -80,6 +80,9 @@ importers:
 
   server:
     dependencies:
+      '@cco/adapter-claude-code':
+        specifier: workspace:*
+        version: link:../packages/adapters/claude-code
       '@cco/adapter-utils':
         specifier: workspace:*
         version: link:../packages/adapter-utils

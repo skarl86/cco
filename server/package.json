@@ -11,6 +11,7 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@cco/adapter-claude-code": "workspace:*",
     "@cco/adapter-utils": "workspace:*",
     "@cco/db": "workspace:*",
     "@cco/shared": "workspace:*",
