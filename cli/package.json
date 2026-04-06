@@ -15,5 +15,8 @@
     "@cco/shared": "workspace:*",
     "@clack/prompts": "^1.2.0",
     "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2"
   }
 }
