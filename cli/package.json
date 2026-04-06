@@ -1,0 +1,19 @@
+{
+  "name": "cco-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "cco": "dist/index.js"
+  },
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@cco/shared": "workspace:*",
+    "@clack/prompts": "^1.2.0",
+    "commander": "^14.0.3"
+  }
+}

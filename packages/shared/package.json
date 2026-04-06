@@ -1,0 +1,16 @@
+{
+  "name": "@cco/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "nanoid": "^5.1.7",
+    "zod": "^4.3.6"
+  }
+}
