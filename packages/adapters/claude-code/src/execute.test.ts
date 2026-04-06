@@ -51,21 +51,22 @@ describe('buildClaudeArgs', () => {
     expect(args).toContain('/tmp/prompt.md');
   });
 
-  it('adds default --allowedTools when neither allowUnsafe nor allowedTools set', () => {
+  it('adds default --allowedTools as single space-joined arg', () => {
     const args = buildClaudeArgs({});
-    expect(args).toContain('--allowedTools');
-    // Should contain all default tools
+    const idx = args.indexOf('--allowedTools');
+    expect(idx).toBeGreaterThan(-1);
+    const value = args[idx + 1];
     for (const tool of DEFAULT_ALLOWED_TOOLS) {
-      expect(args).toContain(tool);
+      expect(value).toContain(tool);
     }
     expect(args).not.toContain('--dangerously-skip-permissions');
   });
 
-  it('adds custom --allowedTools when specified', () => {
+  it('adds custom --allowedTools as single space-joined arg', () => {
     const args = buildClaudeArgs({ allowedTools: ['Bash(git:*)', 'Read'] });
-    expect(args).toContain('--allowedTools');
-    expect(args).toContain('Bash(git:*)');
-    expect(args).toContain('Read');
+    const idx = args.indexOf('--allowedTools');
+    expect(idx).toBeGreaterThan(-1);
+    expect(args[idx + 1]).toBe('Bash(git:*) Read');
   });
 
   it('prefers --dangerously-skip-permissions when allowUnsafe is true even with allowedTools', () => {
@@ -76,9 +77,11 @@ describe('buildClaudeArgs', () => {
 
   it('falls back to default tools when allowedTools is empty', () => {
     const args = buildClaudeArgs({ allowedTools: [] });
-    expect(args).toContain('--allowedTools');
+    const idx = args.indexOf('--allowedTools');
+    expect(idx).toBeGreaterThan(-1);
+    const value = args[idx + 1];
     for (const tool of DEFAULT_ALLOWED_TOOLS) {
-      expect(args).toContain(tool);
+      expect(value).toContain(tool);
     }
   });
 });

@@ -41,9 +41,7 @@ export function buildClaudeArgs(opts: BuildArgsOptions): string[] {
     args.push('--dangerously-skip-permissions');
   } else {
     const tools = opts.allowedTools?.length ? opts.allowedTools : DEFAULT_ALLOWED_TOOLS;
-    for (const tool of tools) {
-      args.push('--allowedTools', tool);
-    }
+    args.push('--allowedTools', tools.join(' '));
   }
   if (opts.skillsDir) {
     args.push('--add-dir', opts.skillsDir);
