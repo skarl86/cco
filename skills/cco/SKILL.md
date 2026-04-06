@@ -21,3 +21,32 @@ Common operations:
 - Update task status: PATCH /api/teams/{teamId}/tasks/{taskId}
 - Add comments: POST /api/teams/{teamId}/tasks/{taskId}/comments
 - Create sub-tasks: POST /api/teams/{teamId}/tasks
+
+## Work Products
+
+After completing work, register your outputs:
+
+### Register a Pull Request
+POST /api/teams/{teamId}/tasks/{taskId}/work-products
+{
+  "type": "pull_request",
+  "provider": "github",
+  "title": "feat: implement feature",
+  "url": "https://github.com/org/repo/pull/123",
+  "externalId": "123",
+  "status": "ready_for_review",
+  "reviewState": "needs_review",
+  "isPrimary": true
+}
+
+### Register a Commit
+POST /api/teams/{teamId}/tasks/{taskId}/work-products
+{
+  "type": "commit",
+  "provider": "local",
+  "title": "a1b2c3d — fix auth bug",
+  "externalId": "a1b2c3d"
+}
+
+### Types
+- pull_request, commit, branch, artifact, document, preview_url
