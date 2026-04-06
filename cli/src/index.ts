@@ -15,6 +15,7 @@ import { registerExportImportCommands } from './commands/export-import.js';
 import { registerHeartbeatCommands } from './commands/heartbeat.js';
 import { registerRoutineCommands } from './commands/routine.js';
 import { registerWorkspaceCommands } from './commands/workspace.js';
+import { registerWorkProductCommands } from './commands/work-product.js';
 
 const program = new Command();
 
@@ -74,5 +75,6 @@ registerExportImportCommands(program);
 registerHeartbeatCommands(program);
 registerRoutineCommands(program);
 registerWorkspaceCommands(program);
+registerWorkProductCommands(program);
 
 program.parse();
