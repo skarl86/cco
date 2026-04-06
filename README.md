@@ -1,149 +1,143 @@
 # CCO — Claude Code Orchestrator
 
-AI 에이전트 팀 오케스트레이션 플랫폼. 여러 Claude Code 에이전트를 팀으로 구성하고, 작업을 할당하고, 비용과 실행을 중앙에서 관리합니다.
+AI 에이전트 팀 오케스트레이션 플랫폼. 여러 AI 에이전트를 팀으로 구성하고, 작업을 할당하고, 비용과 실행을 중앙에서 관리합니다.
 
-## 프로젝트 개요
+## 주요 기능
 
-CCO는 다음 기능을 제공하는 REST API 서버입니다:
+### Core
+- **팀 관리** — 에이전트 팀 생성, 관리, 내보내기/가져오기
+- **에이전트 관리** — 다중 어댑터 지원 (Claude, Gemini, Codex, OpenCode), 역할/권한/인스트럭션 관리, 에이전트별 API 키
+- **작업(Task) 관리** — 상태 머신 (backlog→todo→in_progress→in_review→done), 문서 리비전 추적
+- **실행(Run) 추적** — 실시간 WebSocket 이벤트, 로그/토큰/비용 기록
+- **목표(Goals)** — 계층형 목표 시스템, 프로젝트 연결
 
-- **팀 관리** — 에이전트 팀을 생성하고 관리
-- **에이전트 관리** — Claude Code 에이전트를 등록하고 역할(orchestrator/worker)을 부여
-- **작업(Task) 관리** — 작업 생성, 할당, 상태 추적 (todo → in_progress → done)
-- **실행(Run) 추적** — 에이전트 실행 로그, 종료 코드, stdout/stderr 기록
-- **예산 정책** — 팀/에이전트/프로젝트 단위 월별 비용 한도 및 경고 임계값
-- **루틴(Routine)** — cron 표현식 기반 정기 작업 스케줄링
-- **승인(Approval)** — 민감한 작업에 대한 사람 승인 워크플로우
-- **활동 로그** — 모든 엔티티 변경에 대한 감사 로그
+### Orchestration
+- **예산 관리** — 팀/에이전트/프로젝트 단위 월별 비용 한도, 대시보드 집계
+- **루틴(Routine)** — 5-field cron 파서, 자동 트리거, 실행 이력
+- **승인(Approval)** — 승인/거부 워크플로우, 페이로드 뷰어
+- **스케줄러** — Heartbeat 스케줄링, 고아 런 정리, cron 트리거 평가
 
-### 패키지 구조 (pnpm monorepo)
+### Infrastructure
+- **실시간 업데이트** — WebSocket pub/sub, 이벤트 기반 UI 갱신
+- **피드백 시스템** — 투표 (up/down), 피드백 트레이스
+- **활동 로그** — 모든 엔티티 변경 감사 기록
+- **스토리지** — 로컬 디스크 파일 스토리지
+- **시크릿** — AES-256-GCM 암호화 시크릿 관리
+- **설정 시스템** — 계층형 설정 (환경변수 > 설정파일 > 기본값)
+
+## 아키텍처
 
 ```
 cco/
-├── server/                        # Express API 서버 (포트 3100)
 ├── packages/
-│   ├── shared/                    # 공유 타입 및 validators (Zod)
-│   ├── db/                        # Drizzle ORM + better-sqlite3 스키마
-│   ├── adapter-utils/             # 어댑터 공통 유틸리티
-│   └── adapters/
-│       └── claude-code/           # Claude Code CLI 어댑터
+│   ├── db/              # Drizzle ORM + SQLite (17 테이블, 마이그레이션)
+│   ├── shared/          # 타입, 검증기, 설정 스키마, ID 생성
+│   ├── adapter-utils/   # 어댑터 플러그인 인터페이스
+│   └── adapters/        # 4개 어댑터
+│       ├── claude-code/   Claude Code CLI
+│       ├── gemini/        Gemini CLI
+│       ├── codex/         Codex CLI
+│       └── opencode/      OpenCode CLI
+├── server/              # Express REST API (20 라우트, 22 서비스, 6 미들웨어)
+│   ├── src/routes/        API 엔드포인트 (~45개)
+│   ├── src/services/      비즈니스 로직
+│   ├── src/middleware/     에러 핸들링, 검증, 로깅, 인증
+│   ├── src/realtime/      WebSocket 라이브 이벤트
+│   ├── src/storage/       파일 스토리지 프로바이더
+│   └── src/secrets/       암호화 시크릿 관리
+├── cli/                 # Commander.js CLI (30+ 커맨드)
+├── ui/                  # React + Vite SPA (13 페이지, 다크모드, 실시간)
+├── skills/              # 에이전트 스킬 파일 (3개)
+├── docker-compose.yml   # Docker 배포
+└── tests/               # 25 테스트 파일, 165 테스트
 ```
 
-## 요구 사항
-
-- Node.js >= 20.0.0
-- pnpm >= 9.0.0
-- Claude Code CLI (`claude`) — claude-code 어댑터 사용 시 필요
-
-## 설치 방법
+## 빠른 시작
 
 ```bash
-# 저장소 클론
-git clone <repo-url>
-cd cco
-
 # 의존성 설치
 pnpm install
 
-# 빌드
-pnpm build
-```
+# 개발 서버 시작
+pnpm --filter @cco/server dev
 
-## 사용법
+# UI 개발 서버
+pnpm --filter @cco/ui dev
 
-### 개발 서버 실행
-
-```bash
-pnpm dev
-```
-
-서버가 `http://localhost:3100` 에서 실행됩니다.
-
-### 환경 변수
-
-| 변수 | 기본값 | 설명 |
-|------|--------|------|
-| `CCO_HOME` | `~/.cco` | CCO 홈 디렉토리 |
-| `CCO_DB_PATH` | `~/.cco/cco.db` | SQLite DB 파일 경로 |
-| `CCO_PORT` | `3100` | 서버 포트 |
-| `CCO_API_KEY` | (없음) | API 인증 키 (미설정 시 비인증 모드) |
-| `CCO_SCHEDULER_INTERVAL_MS` | `60000` | 루틴 스케줄러 주기 (ms) |
-
-```bash
-# 예시
-CCO_API_KEY=my-secret-key CCO_PORT=3200 pnpm dev
-```
-
-### API 엔드포인트
-
-모든 요청에 `CCO_API_KEY` 설정 시 `Authorization: Bearer <key>` 헤더가 필요합니다.
-
-#### 팀
-
-```
-GET    /teams              # 팀 목록
-POST   /teams              # 팀 생성
-GET    /teams/:id          # 팀 조회
-PATCH  /teams/:id          # 팀 수정
-```
-
-#### 에이전트
-
-```
-GET    /teams/:teamId/agents       # 에이전트 목록
-POST   /teams/:teamId/agents       # 에이전트 등록
-GET    /teams/:teamId/agents/:id   # 에이전트 조회
-PATCH  /teams/:teamId/agents/:id   # 에이전트 수정
-```
-
-#### 작업(Task)
-
-```
-GET    /teams/:teamId/tasks        # 작업 목록
-POST   /teams/:teamId/tasks        # 작업 생성
-GET    /teams/:teamId/tasks/:id    # 작업 조회
-PATCH  /teams/:teamId/tasks/:id    # 작업 수정
-```
-
-#### 실행(Run)
-
-```
-GET    /teams/:teamId/runs         # 실행 목록
-GET    /teams/:teamId/runs/:id     # 실행 조회
-```
-
-#### 루틴(Routine)
-
-```
-GET    /teams/:teamId/routines     # 루틴 목록
-POST   /teams/:teamId/routines     # 루틴 생성
-PATCH  /teams/:teamId/routines/:id # 루틴 수정
-```
-
-### 테스트
-
-```bash
-# 전체 테스트 실행
+# 테스트 실행
 pnpm test
 
-# 감시 모드
-pnpm test:watch
-
-# 커버리지 리포트
-pnpm test:coverage
+# CLI 사용
+pnpm --filter cco-cli start
 ```
 
-### 타입 체크
+## API 엔드포인트 (주요)
+
+| Category | Endpoints |
+|----------|-----------|
+| Teams | CRUD + DELETE (cascade) |
+| Agents | CRUD + instructions + permissions + API keys |
+| Tasks | CRUD + status transitions + comments + documents |
+| Runs | Start run + list + detail |
+| Goals | CRUD + hierarchy (children) |
+| Approvals | CRUD + decide (approve/reject) |
+| Routines | CRUD + triggers + manual trigger + run history |
+| Dashboard | Aggregated metrics + sidebar badges |
+| Costs | List + monthly spend + per-agent breakdown |
+| Activity | Filterable audit log |
+| Feedback | Voting + summaries |
+| Adapters | List + test environment |
+| Assets | Upload + download + delete |
+| Secrets | CRUD (values never exposed in GET) |
+| Export/Import | Team data portability |
+| WebSocket | `/api/teams/:teamId/events/ws` |
+
+## CLI 커맨드
 
 ```bash
-pnpm typecheck
+cco doctor                     # 진단 검사
+cco start [-p port]            # 서버 시작
+cco status                     # 서버 상태 확인
+cco team list|get|delete       # 팀 관리
+cco agent list|get             # 에이전트 관리
+cco task list|get|create|update|comment  # 작업 관리
+cco approval list|get|approve|reject     # 승인 관리
+cco goal list|create           # 목표 관리
+cco run exec|list              # 에이전트 실행
+cco activity list              # 활동 로그
+cco dashboard                  # 대시보드
+cco export --team <id>         # 팀 내보내기
+cco import --team <id> --from <file>  # 팀 가져오기
 ```
+
+## Docker
+
+```bash
+# 빌드 & 실행
+docker compose up -d
+
+# 퀵스타트
+docker compose -f docker-compose.quickstart.yml up
+```
+
+## 설정
+
+환경 변수 또는 `~/.cco/config.json`:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CCO_PORT` | 3100 | 서버 포트 |
+| `CCO_API_KEY` | — | API 인증 키 |
+| `CCO_DB_PATH` | ~/.cco/cco.db | DB 파일 경로 |
+| `CCO_SCHEDULER_INTERVAL_MS` | 60000 | 스케줄러 간격 |
+| `LOG_LEVEL` | info | 로그 레벨 |
 
 ## 기술 스택
 
-- **런타임**: Node.js (ESM)
-- **프레임워크**: Express 5
-- **데이터베이스**: SQLite (better-sqlite3) + Drizzle ORM
-- **검증**: Zod v4
-- **로깅**: pino / pino-http
-- **테스트**: Vitest + Playwright (E2E)
-- **언어**: TypeScript
+- **Runtime**: Node.js 24+, TypeScript 6
+- **Server**: Express 5, Pino logging, Zod validation
+- **Database**: SQLite + Drizzle ORM (마이그레이션 지원)
+- **Frontend**: React 19, Vite 8, Tailwind CSS 4, TanStack Query 5
+- **CLI**: Commander.js, @clack/prompts
+- **Real-time**: WebSocket (ws)
+- **Security**: AES-256-GCM secrets, SHA256 API keys, timing-safe auth
