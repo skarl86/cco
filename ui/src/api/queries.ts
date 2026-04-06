@@ -347,6 +347,42 @@ export function useDocuments(teamId: string, taskId: string) {
   });
 }
 
+// --- Work Products ---
+
+export function useWorkProducts(teamId: string, taskId: string) {
+  return useQuery({
+    queryKey: queryKeys.workProducts.list(teamId, taskId),
+    queryFn: () => api.get<ApiResponse<any[]>>(`/teams/${teamId}/tasks/${taskId}/work-products`).then((r) => r.data),
+    enabled: !!teamId && !!taskId,
+  });
+}
+
+export function useCreateWorkProduct(teamId: string, taskId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { type: string; provider: string; title: string; url?: string; externalId?: string; isPrimary?: boolean; status?: string; reviewState?: string; summary?: string }) =>
+      api.post<ApiResponse<any>>(`/teams/${teamId}/tasks/${taskId}/work-products`, data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workProducts.list(teamId, taskId) }),
+  });
+}
+
+export function useUpdateWorkProduct(teamId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; status?: string; reviewState?: string; isPrimary?: boolean }) =>
+      api.patch<ApiResponse<any>>(`/teams/${teamId}/work-products/${id}`, data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['work-products'] }),
+  });
+}
+
+export function useDeleteWorkProduct(teamId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/teams/${teamId}/work-products/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['work-products'] }),
+  });
+}
+
 // --- Feedback ---
 
 export function useFeedbackSummary(teamId: string, targetType: string, targetId: string) {

@@ -22,6 +22,14 @@ const STATUS_STYLES: Record<string, StatusStyle> = {
   archived:    { bg: 'var(--color-bg-alt)', text: 'var(--color-text-muted)' },
   approved:    { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
   rejected:    { bg: 'var(--color-error-light)', text: 'var(--color-error)' },
+  draft:       { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  ready_for_review: { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  merged:      { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  closed:      { bg: 'var(--color-bg-alt)', text: 'var(--color-text-muted)' },
+  needs_review: { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  changes_requested: { bg: 'var(--color-error-light)', text: 'var(--color-error)' },
+  healthy:     { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  unhealthy:   { bg: 'var(--color-error-light)', text: 'var(--color-error)' },
 };
 
 const DEFAULT_STYLE: StatusStyle = { bg: 'var(--color-bg-alt)', text: 'var(--color-text-muted)' };

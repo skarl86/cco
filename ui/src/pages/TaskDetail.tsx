@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router';
-import { useTask, useComments, useCreateComment, useUpdateTask } from '@/api/queries.js';
+import { useTask, useComments, useCreateComment, useUpdateTask, useWorkProducts, useUpdateWorkProduct } from '@/api/queries.js';
 import { StatusBadge } from '@/components/ui/StatusBadge.js';
 import { useTeamId } from '@/hooks/useTeamId.js';
+import { WorkProductCard } from '@/components/WorkProductCard.js';
 import {
   ArrowLeft, ListTodo, Clock, MessageSquare, Send,
   ArrowRight, User, Bot,
@@ -148,6 +149,9 @@ export default function TaskDetail() {
           </div>
         )}
       </div>
+
+      {/* Work Products */}
+      <WorkProductsSection teamId={teamId} taskId={taskId ?? ''} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Comments */}
@@ -299,6 +303,27 @@ export default function TaskDetail() {
             </dl>
           </section>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkProductsSection({ teamId, taskId }: { teamId: string; taskId: string }) {
+  const { data: workProducts = [] } = useWorkProducts(teamId, taskId);
+  const updateWp = useUpdateWorkProduct(teamId);
+
+  if (workProducts.length === 0) return null;
+
+  return (
+    <div className="rounded-xl p-5 mb-6" style={cardStyle}>
+      <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-secondary)' }}>
+        Work Products ({workProducts.length})
+      </h3>
+      <div className="space-y-3">
+        {workProducts.map((wp: any) => (
+          <WorkProductCard key={wp.id} wp={wp}
+            onReview={(id, state) => updateWp.mutate({ id, reviewState: state })} />
+        ))}
       </div>
     </div>
   );
