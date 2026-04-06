@@ -152,3 +152,4 @@ docker compose -f docker-compose.quickstart.yml up
 - **Security**: AES-256-GCM secrets, SHA256 API keys, timing-safe auth
 
 <!-- 테스트 커밋용 줄 -->
+<!-- CCO-1: README 테스트 커밋 추가 -->
