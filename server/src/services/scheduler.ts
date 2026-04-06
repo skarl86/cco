@@ -52,9 +52,11 @@ export function createScheduler(deps: SchedulerDeps): Scheduler {
           invocationSource: 'heartbeat',
         });
 
-        // Release checkout on failure, keep on success
+        // Update task status based on run result
         if (result.status === 'failed') {
           checkoutService.release(agent.teamId, task.id, 'todo');
+        } else {
+          checkoutService.release(agent.teamId, task.id, 'done');
         }
 
         results.push(result);

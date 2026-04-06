@@ -101,10 +101,10 @@ describe('Scheduler', () => {
     expect(results.length).toBe(0);
   });
 
-  it('tick transitions task from todo to in_progress via checkout', async () => {
+  it('tick transitions task to done on successful run', async () => {
     const now = Date.now();
     database.db.insert(tasks).values({
-      id: 'task_sched_checkout', teamId, title: 'Checkout test',
+      id: 'task_sched_done', teamId, title: 'Done test',
       status: 'todo', priority: 'medium', originKind: 'manual',
       taskNumber: 10, identifier: 'SC-10',
       createdAt: now, updatedAt: now,
@@ -116,13 +116,14 @@ describe('Scheduler', () => {
       .where(eq(agents.id, 'agent_sched'))
       .run();
 
-    await scheduler.tick();
+    const results = await scheduler.tick();
+    expect(results[0].status).toBe('completed');
 
     const task = database.db.select().from(tasks)
-      .where(eq(tasks.id, 'task_sched_checkout')).get();
-    expect(task!.status).toBe('in_progress');
-    expect(task!.assigneeAgentId).toBe('agent_sched');
-    expect(task!.checkoutRunId).toBeTruthy();
+      .where(eq(tasks.id, 'task_sched_done')).get();
+    expect(task!.status).toBe('done');
+    expect(task!.completedAt).toBeGreaterThan(0);
+    expect(task!.checkoutRunId).toBeNull();
   });
 
   it('start and stop control the interval timer', () => {
